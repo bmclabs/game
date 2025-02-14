@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Battle Memecoin Club</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+        }
+        #renderDiv {
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+</head>
+<body>
+    <div id="renderDiv"></div>
+    <script src="src/config/characters.js"></script>
+    <script src="src/characters/Fighter.js"></script>
+    <script src="src/scenes/PreparationScene.js"></script>
+    <script src="src/scenes/BattleScene.js"></script>
+    <script src="src/game.js"></script>
+</body>
+</html> 
