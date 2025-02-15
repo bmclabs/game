@@ -22,6 +22,12 @@ class BattleScene extends Phaser.Scene {
     if (!this.sound.get('jump')) {
       this.load.audio('jump', 'assets/sounds/effects/jump.wav');
     }
+
+    // Load countdown sound effects
+    this.load.audio('3', 'assets/sounds/effects/3.wav');
+    this.load.audio('2', 'assets/sounds/effects/2.wav');
+    this.load.audio('1', 'assets/sounds/effects/1.wav');
+    this.load.audio('fight', 'assets/sounds/effects/fight.mp3');
   }
 
   init(data) {
@@ -29,7 +35,7 @@ class BattleScene extends Phaser.Scene {
     this.fighter1Stats = data.fighter1Stats;
     this.fighter2Stats = data.fighter2Stats;
     this.currentArena = data.arenaNumber || 1;
-    this.isGameActive = true;
+    this.isGameActive = false; // Set to false initially until countdown finishes
     this.lastUpdateTime = 0;
     this.isTransitioning = false;
 
@@ -42,8 +48,6 @@ class BattleScene extends Phaser.Scene {
       // Set background with arena image
       this.background = this.add.image(400, 300, `arena${this.currentArena}`);
       this.background.setDisplaySize(800, 600);
-
-      // Make sure background is behind everything
       this.background.setDepth(-1);
 
       // Play background music for current arena
@@ -64,6 +68,16 @@ class BattleScene extends Phaser.Scene {
       // Show UI for both fighters
       this.fighter1.showUI();
       this.fighter2.showUI();
+
+      // Add countdown text (hidden initially)
+      this.countdownText = this.add.text(400, 250, '', {
+        fontSize: '120px',
+        fill: '#fff',
+        align: 'center',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 8
+      }).setOrigin(0.5).setVisible(false);
 
       // Add battle timer
       this.battleTimer = 60;
@@ -102,7 +116,101 @@ class BattleScene extends Phaser.Scene {
         strokeThickness: 6
       }).setOrigin(0.5).setVisible(false);
 
+      // Start countdown animation
+      this.startCountdown();
+
+    } catch (error) {
+      console.error('Error in BattleScene create:', error);
+    }
+  }
+
+  startCountdown() {
+    const countdownConfig = {
+      fontSize: '120px',
+      fill: '#fff',
+      align: 'center',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 8
+    };
+
+    const showNumber = (number, delay) => {
+      this.time.delayedCall(delay, () => {
+        this.countdownText.setStyle(countdownConfig);
+        this.countdownText.setText(number);
+        this.countdownText.setVisible(true);
+
+        // Play corresponding sound with error handling
+        try {
+          const soundKey = number === 'FIGHT!' ? 'fight' : number;
+          const sound = this.sound.add(soundKey, { volume: 0.5 });
+          sound.play();
+        } catch (error) {
+          console.warn('Sound effect not played:', error);
+        }
+
+        // Add scale animation
+        this.tweens.add({
+          targets: this.countdownText,
+          scaleX: 1.2,
+          scaleY: 1.2,
+          duration: 200,
+          yoyo: true,
+          ease: 'Power2',
+          onComplete: () => {
+            this.countdownText.setScale(1);
+
+            // Hide text after animation
+            this.time.delayedCall(800, () => {
+              this.countdownText.setVisible(false);
+            });
+
+            // Start battle only after FIGHT! animation
+            if (number === 'FIGHT!') {
+              this.time.delayedCall(500, () => {
+                this.startBattle();
+              });
+            }
+          }
+        });
+      });
+    };
+
+    // Ensure countdown text is reset
+    this.countdownText.setScale(1);
+    this.countdownText.setVisible(false);
+
+    // Show countdown numbers with delays
+    showNumber('3', 0);
+    showNumber('2', 1500);
+    showNumber('1', 3000);
+
+    // Show FIGHT! with different style
+    this.time.delayedCall(4500, () => {
+      this.countdownText.setStyle({
+        ...countdownConfig,
+        fontSize: '150px',
+        fill: '#ffd700'
+      });
+      showNumber('FIGHT!', 0);
+    });
+  }
+
+  startBattle() {
+    try {
+      // Ensure game is not already active
+      if (this.isGameActive) return;
+
+      this.isGameActive = true;
+      this.isTransitioning = false;
+
+      // Ensure timer text is visible and set
+      this.timerText.setText(this.battleTimer.toString());
+      this.timerText.setVisible(true);
+
       // Start the battle timer
+      if (this.timerEvent) this.timerEvent.remove();
+
       this.timerEvent = this.time.addEvent({
         delay: 1000,
         callback: this.updateTimer,
@@ -110,11 +218,16 @@ class BattleScene extends Phaser.Scene {
         loop: true
       });
 
-      // Set initial action delays for fighters
-      this.fighter1.nextActionTime = this.time.now + Math.random() * 1000;
-      this.fighter2.nextActionTime = this.time.now + Math.random() * 1000;
+      // Reset and set initial action delays for fighters
+      if (this.fighter1 && this.fighter2) {
+        this.fighter1.nextActionTime = this.time.now + Math.random() * 1000;
+        this.fighter2.nextActionTime = this.time.now + Math.random() * 1000;
+      }
     } catch (error) {
-      console.error('Error in BattleScene create:', error);
+      console.error('Error in startBattle:', error);
+      // Attempt recovery
+      this.isGameActive = true;
+      this.isTransitioning = false;
     }
   }
 
@@ -162,9 +275,10 @@ class BattleScene extends Phaser.Scene {
     if (!winner) return;
 
     try {
-      const resultText = isKO ? 'ROUND WIN!' : 'ROUND WIN!'; 
+      const resultText = isKO ? 'ROUND WIN!' : 'ROUND WIN!';
       this.roundResultText.setText(`${winner.stats.name}\n${resultText}`);
       this.roundResultText.setVisible(true);
+      this.roundResultText.setScale(1);
 
       // Add log message for round result
       winner.addLogMessage('Won the round!', '#ffd700');
@@ -179,16 +293,25 @@ class BattleScene extends Phaser.Scene {
         repeat: 2,
         ease: 'Sine.easeInOut',
         onComplete: () => {
-          this.roundResultText.setVisible(false);
-          this.roundResultText.setScale(1);
+          // Ensure text is hidden after animation
+          this.time.delayedCall(200, () => {
+            this.roundResultText.setVisible(false);
+            this.roundResultText.setScale(1);
+          });
 
+          // Check for match victory
           if (winner.roundsWon >= 2) {
-            this.showVictoryAnimation(winner);
+            this.time.delayedCall(500, () => {
+              this.showVictoryAnimation(winner);
+            });
           }
         }
       });
     } catch (error) {
       console.error('Error in showRoundResult:', error);
+      // Fallback: ensure text is hidden even if animation fails
+      this.roundResultText.setVisible(false);
+      this.roundResultText.setScale(1);
     }
   }
 
@@ -199,17 +322,34 @@ class BattleScene extends Phaser.Scene {
       this.fighter2.reset();
 
       // Reset game state
-      this.isGameActive = true;
+      this.isGameActive = false;
       this.isTransitioning = false;
       this.battleTimer = 60;
 
-      // Reset fighter positions
+      // Reset fighter positions and facing
       this.fighter1.sprite.x = 200;
+      this.fighter1.sprite.y = 400;
+      this.fighter1.groundY = 400;
+      this.fighter1.updateFacing(1); // Face right
+      this.fighter1.hitbox.x = 200;
+      this.fighter1.hitbox.y = 400;
+
       this.fighter2.sprite.x = 600;
+      this.fighter2.sprite.y = 400;
+      this.fighter2.groundY = 400;
+      this.fighter2.updateFacing(-1); // Face left
+      this.fighter2.hitbox.x = 600;
+      this.fighter2.hitbox.y = 400;
+
+      // Reset any ongoing animations or effects
+      this.tweens.killAll();
 
       // Update round number
       this.roundNumber++;
       this.roundText.setText(`ROUND ${this.roundNumber}`);
+
+      // Start new countdown for next round
+      this.startCountdown();
     } catch (error) {
       console.error('Error in startNextRound:', error);
     }
