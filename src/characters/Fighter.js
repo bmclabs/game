@@ -521,34 +521,75 @@ class Fighter {
         const myOldX = this.sprite.x;
         const opponentOldX = opponent.sprite.x;
         
-        // Swap positions with animation
+        // Add transition effect before swap
+        if (this.sprite.preFX) {
+            const fadeOutFX = this.sprite.preFX.addColorMatrix();
+            fadeOutFX.alpha = 0.3;
+        }
+        if (opponent.sprite.preFX) {
+            const fadeOutFX = opponent.sprite.preFX.addColorMatrix();
+            fadeOutFX.alpha = 0.3;
+        }
+        
+        // Swap positions with smooth animation
         this.scene.tweens.add({
             targets: [this.sprite, this.hitbox],
             x: opponentOldX,
-            duration: 300,
-            ease: 'Power1'
+            duration: 400,
+            ease: 'Sine.easeInOut',
+            onComplete: () => {
+                if (this.sprite.preFX) {
+                    this.sprite.preFX.clear();
+                    this.sprite.preFX.addGlow(this.stats.color || 0xff0000, 0.5, 0, false, 0.1, 16);
+                }
+            }
         });
         
         this.scene.tweens.add({
             targets: [opponent.sprite, opponent.hitbox],
             x: myOldX,
-            duration: 300,
-            ease: 'Power1'
+            duration: 400,
+            ease: 'Sine.easeInOut',
+            onComplete: () => {
+                if (opponent.sprite.preFX) {
+                    opponent.sprite.preFX.clear();
+                    opponent.sprite.preFX.addGlow(opponent.stats.color || 0xff0000, 0.5, 0, false, 0.1, 16);
+                }
+            }
         });
         
         // Set cooldown
         this.lastSwapTime = this.scene.time.now;
         opponent.lastSwapTime = this.scene.time.now;
         
-        // Add visual effect for swap
-        if (this.sprite.preFX) {
-            const swapFX = this.sprite.preFX.addGlow(0x00ffff, 0.8);
-            this.scene.tweens.add({
-                targets: swapFX,
-                intensity: 0,
-                duration: 300,
-                onComplete: () => swapFX.remove()
-            });
+        // Add trail effect during swap
+        const numTrails = 5;
+        for (let i = 0; i < numTrails; i++) {
+            const progress = i / (numTrails - 1);
+            const trailX1 = myOldX + (opponentOldX - myOldX) * progress;
+            const trailX2 = opponentOldX + (myOldX - opponentOldX) * progress;
+            
+            setTimeout(() => {
+                if (this.sprite.preFX && opponent.sprite.preFX) {
+                    const trail1 = this.scene.add.sprite(trailX1, this.sprite.y, this.sprite.texture.key);
+                    const trail2 = this.scene.add.sprite(trailX2, opponent.sprite.y, opponent.sprite.texture.key);
+                    
+                    trail1.setScale(this.sprite.scale);
+                    trail2.setScale(opponent.sprite.scale);
+                    trail1.setAlpha(0.3);
+                    trail2.setAlpha(0.3);
+                    
+                    this.scene.tweens.add({
+                        targets: [trail1, trail2],
+                        alpha: 0,
+                        duration: 200,
+                        onComplete: () => {
+                            trail1.destroy();
+                            trail2.destroy();
+                        }
+                    });
+                }
+            }, progress * 200);
         }
     }
 

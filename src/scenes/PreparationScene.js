@@ -36,9 +36,19 @@ class PreparationScene extends Phaser.Scene {
       // Add battle stage platform
       this.add.rectangle(400, 500, 700, 40, 0x333333);
 
+      // Add preparation timer with enhanced styling (moved up)
+      this.preparationTimer = 15;
+      this.timerText = this.add.text(400, 50, '', {
+        fontSize: '48px',
+        fill: '#fff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4
+      }).setOrigin(0.5);
+
       // Create fighters with UI hidden
-      this.fighter1 = new Fighter(this, 200, 400, this.fighter1Stats, true);
-      this.fighter2 = new Fighter(this, 600, 400, this.fighter2Stats, false);
+      this.fighter1 = new Fighter(this, 200, 350, this.fighter1Stats, true);
+      this.fighter2 = new Fighter(this, 600, 350, this.fighter2Stats, false);
 
       // Set initial facing directions
       this.fighter1.updateFacing(1); // Face right
@@ -48,7 +58,7 @@ class PreparationScene extends Phaser.Scene {
       this.fighter1.hideUI();
       this.fighter2.hideUI();
 
-      // Add fighter names with larger font and glow effect
+      // Add fighter names with larger font and glow effect (moved up)
       const nameConfig = {
         fontSize: '48px',
         fill: '#fff',
@@ -58,14 +68,14 @@ class PreparationScene extends Phaser.Scene {
         shadow: { color: '#000000', blur: 10, fill: true }
       };
 
-      this.add.text(200, 200, this.fighter1Stats.name, nameConfig).setOrigin(0.5);
-      this.add.text(600, 200, this.fighter2Stats.name, nameConfig).setOrigin(0.5);
+      this.add.text(200, 100, this.fighter1Stats.name, nameConfig).setOrigin(0.5);
+      this.add.text(600, 100, this.fighter2Stats.name, nameConfig).setOrigin(0.5);
 
-      // Add VS image with enhanced animation
-      this.vsSprite = this.add.sprite(400, 300, 'vs');
+      // Add VS image with enhanced animation (aligned with fighters)
+      this.vsSprite = this.add.sprite(400, 350, 'vs');
       this.vsSprite.setOrigin(0.5);
-
-      // Scale VS sprite to appropriate size (adjust these values as needed)
+      
+      // Scale VS sprite to appropriate size
       const desiredWidth = 200;
       const scale = desiredWidth / this.vsSprite.width;
       this.vsSprite.setScale(scale);
@@ -74,16 +84,6 @@ class PreparationScene extends Phaser.Scene {
       if (this.vsSprite.preFX) {
         this.vsSprite.preFX.addGlow(0xffd700, 0.5, 0, false, 0.1, 16);
       }
-
-      // Add preparation timer with enhanced styling
-      this.preparationTimer = 15;
-      this.timerText = this.add.text(400, 100, '', {
-        fontSize: '48px',
-        fill: '#fff',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 4
-      }).setOrigin(0.5);
 
       // Create VS sprite animation
       this.tweens.add({
