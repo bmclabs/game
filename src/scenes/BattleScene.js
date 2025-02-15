@@ -5,10 +5,22 @@ class BattleScene extends Phaser.Scene {
 
   preload() {
     // Ensure arena backgrounds are loaded
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 6; i++) {
       if (!this.textures.exists(`arena${i}`)) {
         this.load.image(`arena${i}`, `assets/arena/arena${i}.png`);
       }
+      // Ensure background music is loaded
+      if (!this.sound.get(`arena${i}_bgm`)) {
+        this.load.audio(`arena${i}_bgm`, `assets/sounds/background/arena${i}.mp3`);
+      }
+    }
+
+    // Load sound effects if not already loaded
+    if (!this.sound.get('hit')) {
+      this.load.audio('hit', 'assets/sounds/effects/hit.wav');
+    }
+    if (!this.sound.get('jump')) {
+      this.load.audio('jump', 'assets/sounds/effects/jump.wav');
     }
   }
 
@@ -20,6 +32,9 @@ class BattleScene extends Phaser.Scene {
     this.isGameActive = true;
     this.lastUpdateTime = 0;
     this.isTransitioning = false;
+
+    // Stop any currently playing background music
+    this.sound.stopAll();
   }
 
   create() {
@@ -27,9 +42,16 @@ class BattleScene extends Phaser.Scene {
       // Set background with arena image
       this.background = this.add.image(400, 300, `arena${this.currentArena}`);
       this.background.setDisplaySize(800, 600);
-      
+
       // Make sure background is behind everything
       this.background.setDepth(-1);
+
+      // Play background music for current arena
+      this.backgroundMusic = this.sound.add(`arena${this.currentArena}_bgm`, {
+        loop: true,
+        volume: 0.5
+      });
+      this.backgroundMusic.play();
 
       // Add semi-transparent overlay for better visibility
       this.overlay = this.add.rectangle(400, 300, 800, 600, 0x000033, 0.2);
@@ -140,7 +162,7 @@ class BattleScene extends Phaser.Scene {
     if (!winner) return;
 
     try {
-      const resultText = isKO ? 'K.O!' : 'ROUND WIN!';
+      const resultText = isKO ? 'ROUND WIN!' : 'ROUND WIN!'; 
       this.roundResultText.setText(`${winner.stats.name}\n${resultText}`);
       this.roundResultText.setVisible(true);
 
@@ -196,6 +218,11 @@ class BattleScene extends Phaser.Scene {
   startNewMatch() {
     try {
       this.isTransitioning = true;
+
+      // Stop current background music
+      if (this.backgroundMusic) {
+        this.backgroundMusic.stop();
+      }
 
       // Clean up current scene
       this.fighter1.hideUI();

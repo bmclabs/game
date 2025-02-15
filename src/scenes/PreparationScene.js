@@ -17,13 +17,18 @@ class PreparationScene extends Phaser.Scene {
 
       // Load VS image
       this.load.image('vs', 'assets/preparation/vs.png');
-      
+
       // Load preparation background
       this.load.image('prep_bg', 'assets/preparation/bg.png');
 
-      // Load arena backgrounds
-      for (let i = 1; i <= 5; i++) {
+      // Load sound effects
+      this.load.audio('hit', 'assets/sounds/effects/hit.wav');
+      this.load.audio('jump', 'assets/sounds/effects/jump.wav');
+
+      // Load arena backgrounds and their background music
+      for (let i = 1; i <= 6; i++) {
         this.load.image(`arena${i}`, `assets/arena/arena${i}.png`);
+        this.load.audio(`arena${i}_bgm`, `assets/sounds/background/arena${i}.mp3`);
       }
     } catch (error) {
       console.error('Error in preload:', error);
@@ -42,7 +47,7 @@ class PreparationScene extends Phaser.Scene {
       // Set preparation background
       this.background = this.add.image(400, 300, 'prep_bg');
       this.background.setDisplaySize(800, 600);
-      
+
       // Make sure background is behind everything
       this.background.setDepth(-1);
 
@@ -88,7 +93,7 @@ class PreparationScene extends Phaser.Scene {
       // Add VS image with enhanced animation (aligned with fighters)
       this.vsSprite = this.add.sprite(400, 350, 'vs');
       this.vsSprite.setOrigin(0.5);
-      
+
       // Scale VS sprite to appropriate size
       const desiredWidth = 200;
       const scale = desiredWidth / this.vsSprite.width;
