@@ -1,8 +1,58 @@
 class Fighter {
     constructor(scene, x, y, stats, isPlayer1) {
         this.scene = scene;
-        this.sprite = scene.add.rectangle(x, y, 50, 100, stats.color || 0xff0000);
         this.isPlayer1 = isPlayer1;
+        
+        // Create fighter sprite
+        try {
+            const spriteName = stats.name.toLowerCase();
+            
+            // Check if sprite texture exists and is loaded
+            if (scene.textures.exists(spriteName) && scene.textures.get(spriteName).key !== '__MISSING') {
+                this.sprite = scene.add.sprite(x, y, spriteName);
+                this.sprite.setOrigin(0.5);
+                
+                // Increase fighter size (150px height)
+                const desiredHeight = 150;
+                const scale = desiredHeight / this.sprite.height;
+                this.sprite.setScale(scale);
+                
+                // Add sprite glow effect
+                if (this.sprite.preFX) {
+                    this.sprite.preFX.addGlow(stats.color || 0xff0000, 0.5, 0, false, 0.1, 16);
+                }
+                
+                // Add hitbox
+                this.hitbox = scene.add.rectangle(x, y, this.sprite.displayWidth * 0.8, this.sprite.displayHeight * 0.9);
+                this.hitbox.setVisible(false); // Hide hitbox visually but keep it active
+                
+                console.log(`Created sprite for ${spriteName}`);
+            } else {
+                // Use default rectangle if sprite not found
+                const defaultWidth = 75;
+                const defaultHeight = 150;
+                this.sprite = scene.add.rectangle(x, y, defaultWidth, defaultHeight, stats.color || 0xff0000);
+                this.sprite.texture = { key: '__DEFAULT' };
+                
+                // Add hitbox for default rectangle
+                this.hitbox = scene.add.rectangle(x, y, defaultWidth * 0.8, defaultHeight * 0.9);
+                this.hitbox.setVisible(false);
+                
+                console.log(`Using default rectangle for ${spriteName}`);
+            }
+        } catch (error) {
+            console.warn('Fighter sprite creation failed, using fallback:', error);
+            const defaultWidth = 75;
+            const defaultHeight = 150;
+            this.sprite = scene.add.rectangle(x, y, defaultWidth, defaultHeight, stats.color || 0xff0000);
+            this.sprite.texture = { key: '__DEFAULT' };
+            this.hitbox = scene.add.rectangle(x, y, defaultWidth * 0.8, defaultHeight * 0.9);
+            this.hitbox.setVisible(false);
+        }
+
+        // Set initial facing direction
+        this.updateFacing(isPlayer1 ? 1 : -1);
+
         this.roundsWon = 0;
         this.stats = {
             hp: stats.hp || 100,
@@ -19,12 +69,23 @@ class Fighter {
             name: stats.name || (isPlayer1 ? 'Player 1' : 'Player 2')
         };
 
+        // Add jumping properties
+        this.isJumping = false;
+        this.jumpVelocity = 0;
+        this.jumpSpeed = 15;
+        this.gravity = 0.8;
+        this.groundY = y;
+        this.canSwapPosition = true;
+        this.swapCooldown = 2000; // 2 seconds cooldown
+        this.lastSwapTime = 0;
+        
         // Fighting style properties
         this.nextActionTime = 0;
         this.actionDelay = Math.random() * 300 + 200;
         this.targetPosition = x;
-        this.moveSpeed = 4;
-        this.attackRange = 70;
+        this.moveSpeed = 5;
+        this.attackRange = 80; // Reduced for closer combat
+        this.minDistance = 60; // Reduced minimum distance
         this.isMovingRight = Math.random() < 0.5;
         this.consecutiveAttacks = 0;
         this.maxConsecutiveAttacks = 4;
@@ -195,9 +256,19 @@ class Fighter {
         this.gainMana(damage * 0.5);
         this.updateBars();
         
-        // Add log message for damage taken
-        this.addLogMessage(`Took ${damage} damage!`, '#ff6666');
+        // Add damage effects based on sprite type
+        if (this.sprite.texture.key !== '__DEFAULT' && this.sprite.preFX) {
+            const flashFX = this.sprite.preFX.addFlash(0xff0000);
+            this.scene.tweens.add({
+                targets: flashFX,
+                intensity: 1,
+                duration: 100,
+                yoyo: true,
+                onComplete: () => flashFX.remove()
+            });
+        }
         
+        this.addLogMessage(`Took ${damage} damage!`, '#ff6666');
         return damage;
     }
 
@@ -245,17 +316,67 @@ class Fighter {
         this.stats.mana = 0;
         this.updateBars();
         
-        // Clear log messages but keep the UI visible
+        // Reset sprite effects if using custom sprite
+        if (this.sprite.texture.key !== '__DEFAULT' && this.sprite.preFX) {
+            this.sprite.preFX.clear();
+            this.sprite.preFX.addGlow(this.stats.color || 0xff0000, 0.5, 0, false, 0.1, 16);
+        }
+        
         this.logMessages = [];
         this.updateLogDisplay();
+    }
+
+    updateFacing(direction) {
+        if (this.sprite.texture.key !== '__DEFAULT' && this.sprite.setFlipX) {
+            this.sprite.setFlipX(direction < 0);
+        }
     }
 
     update(time, opponent) {
         if (!this.scene || !this.scene.isGameActive) return;
         
         try {
+            // Update jumping physics
+            if (this.isJumping) {
+                this.sprite.y -= this.jumpVelocity;
+                this.jumpVelocity -= this.gravity;
+                
+                // Update hitbox position
+                this.hitbox.y = this.sprite.y;
+                
+                // Check if landed
+                if (this.sprite.y >= this.groundY) {
+                    this.sprite.y = this.groundY;
+                    this.hitbox.y = this.groundY;
+                    this.isJumping = false;
+                    this.jumpVelocity = 0;
+                }
+            }
+
             const distance = Math.abs(this.sprite.x - opponent.sprite.x);
             
+            // Update facing direction based on opponent position
+            this.updateFacing(this.sprite.x < opponent.sprite.x ? 1 : -1);
+            
+            // Check if fighters are too close
+            if (distance < this.minDistance) {
+                // Random chance to swap positions or jump over
+                if (this.canSwapPosition && time - this.lastSwapTime > this.swapCooldown && Math.random() < 0.3) {
+                    this.swapPositionWithOpponent(opponent);
+                } else if (!this.isJumping && Math.random() < 0.4) {
+                    this.jumpOverOpponent(opponent);
+                }
+            }
+
+            // Random jumping during movement
+            if (!this.isJumping && Math.random() < 0.02) {
+                if (Math.random() < 0.3) {
+                    this.jumpOverOpponent(opponent);
+                } else {
+                    this.jump();
+                }
+            }
+
             // Check if fighter is stuck
             if (Math.abs(this.sprite.x - this.targetPosition) < this.moveSpeed) {
                 if (!this.isStuck) {
@@ -277,7 +398,13 @@ class Fighter {
                 
                 // Check boundaries and prevent getting stuck at edges
                 if (newX >= 100 && newX <= 700) {
-                    this.sprite.x = newX;
+                    // Check if moving would cause overlap
+                    const newDistance = Math.abs(newX - opponent.sprite.x);
+                    if (newDistance >= this.minDistance) {
+                        this.sprite.x = newX;
+                    } else {
+                        this.moveAway(opponent);
+                    }
                 } else {
                     this.moveAway(opponent);
                 }
@@ -306,6 +433,9 @@ class Fighter {
                 // Add some randomness to next action time
                 this.nextActionTime = time + this.actionDelay + Math.random() * 100;
             }
+
+            // Update hitbox position with sprite movement
+            this.hitbox.x = this.sprite.x;
         } catch (error) {
             console.error('Error in Fighter update:', error);
         }
@@ -313,8 +443,8 @@ class Fighter {
 
     approachOpponent(opponent) {
         // Calculate optimal attack position
-        const baseOffset = this.attackRange * 0.7; // Reduced from attackRange to make movement more natural
-        const randomOffset = Math.random() * (this.attackRange * 0.3); // Add some randomness
+        const baseOffset = this.attackRange * 0.5; // Reduced offset for closer combat
+        const randomOffset = Math.random() * (this.attackRange * 0.2);
         const offset = baseOffset + randomOffset;
         
         // Determine which side to approach from
@@ -349,22 +479,152 @@ class Fighter {
         this.targetPosition = Math.max(100, Math.min(700, this.targetPosition));
     }
 
+    jump() {
+        if (!this.isJumping) {
+            this.isJumping = true;
+            this.jumpVelocity = this.jumpSpeed;
+            
+            // Add random horizontal movement during jump
+            const jumpDistance = (Math.random() - 0.5) * 200;
+            const newX = Math.max(100, Math.min(700, this.sprite.x + jumpDistance));
+            
+            this.scene.tweens.add({
+                targets: [this.sprite, this.hitbox],
+                x: newX,
+                duration: 500,
+                ease: 'Power1'
+            });
+        }
+    }
+
+    jumpOverOpponent(opponent) {
+        if (!this.isJumping) {
+            this.isJumping = true;
+            this.jumpVelocity = this.jumpSpeed * 1.2; // Higher jump for crossing over
+            
+            // Calculate landing position on other side of opponent
+            const jumpDistance = this.sprite.x < opponent.sprite.x ? 200 : -200;
+            const newX = Math.max(100, Math.min(700, opponent.sprite.x + jumpDistance));
+            
+            this.scene.tweens.add({
+                targets: [this.sprite, this.hitbox],
+                x: newX,
+                duration: 600,
+                ease: 'Power1'
+            });
+        }
+    }
+
+    swapPositionWithOpponent(opponent) {
+        if (!this.canSwapPosition || !opponent.canSwapPosition) return;
+        
+        const myOldX = this.sprite.x;
+        const opponentOldX = opponent.sprite.x;
+        
+        // Swap positions with animation
+        this.scene.tweens.add({
+            targets: [this.sprite, this.hitbox],
+            x: opponentOldX,
+            duration: 300,
+            ease: 'Power1'
+        });
+        
+        this.scene.tweens.add({
+            targets: [opponent.sprite, opponent.hitbox],
+            x: myOldX,
+            duration: 300,
+            ease: 'Power1'
+        });
+        
+        // Set cooldown
+        this.lastSwapTime = this.scene.time.now;
+        opponent.lastSwapTime = this.scene.time.now;
+        
+        // Add visual effect for swap
+        if (this.sprite.preFX) {
+            const swapFX = this.sprite.preFX.addGlow(0x00ffff, 0.8);
+            this.scene.tweens.add({
+                targets: swapFX,
+                intensity: 0,
+                duration: 300,
+                onComplete: () => swapFX.remove()
+            });
+        }
+    }
+
     performAttack(opponent) {
         if (!this.scene || !opponent) return;
         
         try {
-            if (this.stats.mana >= this.stats.specialSkill2Cost) {
-                // Use powerful special if available
-                if (this.useSpecialSkill(2)) {
-                    this.scene.attackFighter(this, opponent, 2);
+            // Check hitbox collision before attack
+            const hitboxesOverlap = Phaser.Geom.Rectangle.Overlaps(
+                this.hitbox.getBounds(),
+                opponent.hitbox.getBounds()
+            );
+            
+            // Allow attack if overlapping or very close
+            const distance = Math.abs(this.sprite.x - opponent.sprite.x);
+            const canAttack = hitboxesOverlap || distance <= this.attackRange;
+            
+            if (!canAttack && !this.isJumping) {
+                // If not in range, try to get closer
+                this.approachOpponent(opponent);
+                return;
+            }
+
+            // Add attack animation
+            const originalX = this.sprite.x;
+            const attackDistance = this.sprite.texture.key === '__DEFAULT' ? 30 : 40;
+            const attackDuration = 200;
+            
+            this.scene.tweens.add({
+                targets: [this.sprite, this.hitbox],
+                x: this.sprite.x + (this.sprite.x < opponent.sprite.x ? attackDistance : -attackDistance),
+                duration: attackDuration / 2,
+                ease: 'Power1',
+                yoyo: true,
+                onComplete: () => {
+                    this.sprite.x = originalX;
+                    this.hitbox.x = originalX;
                 }
-            } else if (this.stats.mana >= this.stats.specialSkill1Cost && Math.random() < 0.7) {
-                // Use regular special with 70% chance if available
-                if (this.useSpecialSkill(1)) {
-                    this.scene.attackFighter(this, opponent, 1);
+            });
+
+            // Add attack effects based on sprite type
+            if (this.sprite.texture.key !== '__DEFAULT') {
+                if (this.stats.mana >= this.stats.specialSkill2Cost) {
+                    // Powerful special attack
+                    if (this.useSpecialSkill(2)) {
+                        if (this.sprite.preFX) {
+                            const glowFX = this.sprite.preFX.addGlow(0xffff00, 1);
+                            this.scene.tweens.add({
+                                targets: glowFX,
+                                intensity: 0,
+                                duration: 500,
+                                onComplete: () => glowFX.remove()
+                            });
+                        }
+                        this.scene.attackFighter(this, opponent, 2);
+                    }
+                } else if (this.stats.mana >= this.stats.specialSkill1Cost && Math.random() < 0.7) {
+                    // Regular special attack
+                    if (this.useSpecialSkill(1)) {
+                        if (this.sprite.preFX) {
+                            const glowFX = this.sprite.preFX.addGlow(0x00ff00, 0.8);
+                            this.scene.tweens.add({
+                                targets: glowFX,
+                                intensity: 0,
+                                duration: 300,
+                                onComplete: () => glowFX.remove()
+                            });
+                        }
+                        this.scene.attackFighter(this, opponent, 1);
+                    }
+                } else {
+                    // Regular attack
+                    this.scene.attackFighter(this, opponent, 0);
                 }
             } else {
-                // Regular attack
+                // Simplified effects for default rectangle
                 this.scene.attackFighter(this, opponent, 0);
             }
         } catch (error) {
