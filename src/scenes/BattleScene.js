@@ -3,10 +3,20 @@ class BattleScene extends Phaser.Scene {
     super({ key: 'BattleScene' });
   }
 
+  preload() {
+    // Ensure arena backgrounds are loaded
+    for (let i = 1; i <= 5; i++) {
+      if (!this.textures.exists(`arena${i}`)) {
+        this.load.image(`arena${i}`, `assets/arena/arena${i}.png`);
+      }
+    }
+  }
+
   init(data) {
     this.roundNumber = data.roundNumber || 1;
     this.fighter1Stats = data.fighter1Stats;
     this.fighter2Stats = data.fighter2Stats;
+    this.currentArena = data.arenaNumber || 1;
     this.isGameActive = true;
     this.lastUpdateTime = 0;
     this.isTransitioning = false;
@@ -14,11 +24,20 @@ class BattleScene extends Phaser.Scene {
 
   create() {
     try {
-      // Set background
-      this.add.rectangle(400, 300, 800, 600, 0x000033);
+      // Set background with arena image
+      this.background = this.add.image(400, 300, `arena${this.currentArena}`);
+      this.background.setDisplaySize(800, 600);
 
-      // Add battle stage platform
-      this.add.rectangle(400, 500, 700, 40, 0x333333);
+      // Make sure background is behind everything
+      this.background.setDepth(-1);
+
+      // Add semi-transparent overlay for better visibility
+      this.overlay = this.add.rectangle(400, 300, 800, 600, 0x000033, 0.2);
+      this.overlay.setDepth(-0.5);
+
+      // Add battle stage platform with transparency
+      this.platform = this.add.rectangle(400, 500, 700, 40, 0x333333, 0.7);
+      this.platform.setDepth(0);
 
       // Create fighters
       this.fighter1 = new Fighter(this, 200, 400, this.fighter1Stats, true);
@@ -33,14 +52,18 @@ class BattleScene extends Phaser.Scene {
       this.timerText = this.add.text(400, 50, '', {
         fontSize: '48px',
         fill: '#fff',
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4
       }).setOrigin(0.5);
 
       // Add round number
       this.roundText = this.add.text(400, 15, `ROUND ${this.roundNumber}`, {
         fontSize: '24px',
         fill: '#fff',
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 3
       }).setOrigin(0.5);
 
       // Add round result text (hidden initially)
@@ -127,7 +150,7 @@ class BattleScene extends Phaser.Scene {
 
       // Add log message for round result
       winner.addLogMessage('Won the round!', '#ffd700');
-      
+
       // Add scaling animation
       this.tweens.add({
         targets: this.roundResultText,
@@ -140,7 +163,7 @@ class BattleScene extends Phaser.Scene {
         onComplete: () => {
           this.roundResultText.setVisible(false);
           this.roundResultText.setScale(1);
-          
+
           if (winner.roundsWon >= 2) {
             this.showVictoryAnimation(winner);
           }
@@ -177,21 +200,23 @@ class BattleScene extends Phaser.Scene {
   startNewMatch() {
     try {
       this.isTransitioning = true;
-      
+
       // Clean up current scene
       this.fighter1.hideUI();
       this.fighter2.hideUI();
-      
-      // Select new random fighters
+
+      // Select new random fighters and arena
       const availableFighters = [...CHARACTERS];
       const newFighter1 = availableFighters.splice(Math.floor(Math.random() * availableFighters.length), 1)[0];
       const newFighter2 = availableFighters[Math.floor(Math.random() * availableFighters.length)];
+      const newArena = Math.floor(Math.random() * 5) + 1;
 
-      // Start preparation phase with new fighters
+      // Start preparation phase with new fighters and arena
       this.scene.start('PreparationScene', {
         roundNumber: 1,
         fighter1Stats: newFighter1,
-        fighter2Stats: newFighter2
+        fighter2Stats: newFighter2,
+        arenaNumber: newArena
       });
     } catch (error) {
       console.error('Error in startNewMatch:', error);
@@ -227,7 +252,7 @@ class BattleScene extends Phaser.Scene {
         onComplete: () => {
           this.victoryText.setVisible(false);
           this.victoryText.setScale(1);
-          
+
           // Ensure we transition to the next match
           this.time.delayedCall(3000, () => {
             if (this.scene) {

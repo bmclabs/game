@@ -17,6 +17,11 @@ class PreparationScene extends Phaser.Scene {
 
       // Load VS image
       this.load.image('vs', 'assets/preparation/vs.png');
+
+      // Load arena backgrounds
+      for (let i = 1; i <= 5; i++) {
+        this.load.image(`arena${i}`, `assets/arena/arena${i}.png`);
+      }
     } catch (error) {
       console.error('Error in preload:', error);
     }
@@ -26,15 +31,19 @@ class PreparationScene extends Phaser.Scene {
     this.roundNumber = data.roundNumber || 1;
     this.fighter1Stats = data.fighter1Stats;
     this.fighter2Stats = data.fighter2Stats;
+    this.currentArena = data.arenaNumber || Math.floor(Math.random() * 5) + 1;
   }
 
   create() {
     try {
-      // Set background
-      this.add.rectangle(400, 300, 800, 600, 0x000033);
+      // Set dark background color
+      this.cameras.main.setBackgroundColor('#000033');
 
-      // Add battle stage platform
-      this.add.rectangle(400, 500, 700, 40, 0x333333);
+      // Add semi-transparent overlay for better text visibility
+      this.add.rectangle(400, 300, 800, 600, 0x000033, 0.3);
+
+      // Add battle stage platform with transparency
+      this.add.rectangle(400, 500, 700, 40, 0x333333, 0.7);
 
       // Add preparation timer with enhanced styling (moved up)
       this.preparationTimer = 15;
@@ -64,7 +73,7 @@ class PreparationScene extends Phaser.Scene {
         fill: '#fff',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 4,
+        strokeThickness: 6,
         shadow: { color: '#000000', blur: 10, fill: true }
       };
 
@@ -124,7 +133,7 @@ class PreparationScene extends Phaser.Scene {
         }
       });
 
-      // Start the timer
+      // Pass arena number to battle scene
       this.time.addEvent({
         delay: 1000,
         callback: this.updateTimer,
@@ -156,7 +165,8 @@ class PreparationScene extends Phaser.Scene {
         this.scene.start('BattleScene', {
           roundNumber: this.roundNumber,
           fighter1Stats: this.fighter1Stats,
-          fighter2Stats: this.fighter2Stats
+          fighter2Stats: this.fighter2Stats,
+          arenaNumber: this.currentArena
         });
       }
     } catch (error) {
