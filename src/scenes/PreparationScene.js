@@ -21,6 +21,9 @@ class PreparationScene extends Phaser.Scene {
       // Load preparation background
       this.load.image('prep_bg', 'assets/preparation/bg.png');
 
+      // Load preparation background music
+      this.load.audio('prep_bgm', 'assets/sounds/preparation/preparation.mp3');
+
       // Load sound effects
       this.load.audio('hit', 'assets/sounds/effects/hit.wav');
       this.load.audio('jump', 'assets/sounds/effects/jump.wav');
@@ -40,6 +43,9 @@ class PreparationScene extends Phaser.Scene {
     this.fighter1Stats = data.fighter1Stats;
     this.fighter2Stats = data.fighter2Stats;
     this.currentArena = data.arenaNumber || Math.floor(Math.random() * 5) + 1;
+
+    // Stop any currently playing background music
+    this.sound.stopAll();
   }
 
   create() {
@@ -50,6 +56,13 @@ class PreparationScene extends Phaser.Scene {
 
       // Make sure background is behind everything
       this.background.setDepth(-1);
+
+      // Play preparation background music
+      this.backgroundMusic = this.sound.add('prep_bgm', {
+        loop: true,
+        volume: 0.5
+      });
+      this.backgroundMusic.play();
 
       // Add semi-transparent overlay for better text visibility
       this.overlay = this.add.rectangle(400, 300, 800, 600, 0x000033, 0.3);
@@ -161,6 +174,11 @@ class PreparationScene extends Phaser.Scene {
       this.timerText.setText(this.preparationTimer.toString());
 
       if (this.preparationTimer <= 0) {
+        // Stop preparation background music
+        if (this.backgroundMusic) {
+          this.backgroundMusic.stop();
+        }
+
         // Stop all tweens before transitioning
         this.tweens.killAll();
 
