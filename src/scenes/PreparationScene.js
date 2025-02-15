@@ -50,10 +50,6 @@ class PreparationScene extends Phaser.Scene {
       this.overlay = this.add.rectangle(400, 300, 800, 600, 0x000033, 0.3);
       this.overlay.setDepth(-0.5);
 
-      // Add battle stage platform with transparency
-      this.platform = this.add.rectangle(400, 500, 700, 40, 0x333333, 0.7);
-      this.platform.setDepth(0);
-
       // Add preparation timer with enhanced styling (moved up)
       this.preparationTimer = 15;
       this.timerText = this.add.text(400, 50, '', {

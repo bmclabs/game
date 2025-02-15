@@ -27,17 +27,13 @@ class BattleScene extends Phaser.Scene {
       // Set background with arena image
       this.background = this.add.image(400, 300, `arena${this.currentArena}`);
       this.background.setDisplaySize(800, 600);
-
+      
       // Make sure background is behind everything
       this.background.setDepth(-1);
 
       // Add semi-transparent overlay for better visibility
       this.overlay = this.add.rectangle(400, 300, 800, 600, 0x000033, 0.2);
       this.overlay.setDepth(-0.5);
-
-      // Add battle stage platform with transparency
-      this.platform = this.add.rectangle(400, 500, 700, 40, 0x333333, 0.7);
-      this.platform.setDepth(0);
 
       // Create fighters
       this.fighter1 = new Fighter(this, 200, 400, this.fighter1Stats, true);
