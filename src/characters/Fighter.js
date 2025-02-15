@@ -106,21 +106,27 @@ class Fighter {
     // Create UI group
     this.uiGroup = scene.add.group();
 
-    // Create background bars
+    // Create background bars with depth
     this.healthBarBg = scene.add.rectangle(uiX + barWidth / 2, uiY + healthBarHeight / 2, barWidth, healthBarHeight, 0x666666);
+    this.healthBarBg.setDepth(100);
+
     this.manaBarBg = scene.add.rectangle(uiX + barWidth / 2, uiY + healthBarHeight + barPadding + manaBarHeight / 2, barWidth, manaBarHeight, 0x666666);
+    this.manaBarBg.setDepth(100);
 
-    // Create health and mana bars
+    // Create health and mana bars with depth
     this.healthBar = scene.add.rectangle(uiX + barWidth / 2, uiY + healthBarHeight / 2, barWidth, healthBarHeight, isPlayer1 ? 0xff0000 : 0xff4444);
-    this.manaBar = scene.add.rectangle(uiX + barWidth / 2, uiY + healthBarHeight + barPadding + manaBarHeight / 2, barWidth, manaBarHeight, isPlayer1 ? 0x0000ff : 0x4444ff);
+    this.healthBar.setDepth(100);
 
-    // Add name text
+    this.manaBar = scene.add.rectangle(uiX + barWidth / 2, uiY + healthBarHeight + barPadding + manaBarHeight / 2, barWidth, manaBarHeight, isPlayer1 ? 0x0000ff : 0x4444ff);
+    this.manaBar.setDepth(100);
+
+    // Add name text with depth
     this.nameText = scene.add.text(uiX + (isPlayer1 ? 0 : barWidth), uiY - 30, this.stats.name, {
       fontSize: '24px',
       fill: '#ffffff',
       align: isPlayer1 ? 'left' : 'right',
       fontStyle: 'bold'
-    }).setOrigin(isPlayer1 ? 0 : 1, 0);
+    }).setOrigin(isPlayer1 ? 0 : 1, 0).setDepth(100);
 
     // Add round indicators
     const indicatorY = uiY + healthBarHeight + manaBarHeight + barPadding * 3;
@@ -134,6 +140,7 @@ class Fighter {
         (uiX + barWidth - indicatorRadius - (1 - i) * indicatorSpacing);
 
       this.roundIndicators[i] = scene.add.circle(x, indicatorY, indicatorRadius, 0x666666);
+      this.roundIndicators[i].setDepth(100);
       this.uiGroup.add(this.roundIndicators[i]);
     }
 
@@ -154,7 +161,7 @@ class Fighter {
       0x000000,
       0.5
     );
-    this.uiGroup.add(this.logBackground);
+    this.logBackground.setDepth(100);
 
     this.logTexts = [];
     for (let i = 0; i < this.maxLogMessages; i++) {
@@ -165,7 +172,7 @@ class Fighter {
         fontFamily: 'Arial',
         fixedWidth: 230,
         wordWrap: { width: 230 }
-      }).setOrigin(isPlayer1 ? 0 : 1, 0);
+      }).setOrigin(isPlayer1 ? 0 : 1, 0).setDepth(100);
 
       this.logTexts.push(text);
       this.uiGroup.add(text);
@@ -180,14 +187,355 @@ class Fighter {
 
     // Initially show the UI
     this.showUI();
+
+    // Add special skill animation properties
+    this.specialAnimations = {};
+    this.currentSpecialAnimation = null;
+
+    // Initialize special skill animations
+    this.initializeSpecialAnimations();
+
+    // Add cooldown system for special skills
+    this.skillCooldowns = {
+      skill1: {
+        timer: 0,
+        duration: 2000 // 2 seconds cooldown
+      },
+      skill2: {
+        timer: 0,
+        duration: 3000 // 3 seconds cooldown
+      }
+    };
+
+    // Add skill usage tracking
+    this.lastAttackTime = 0;
+    this.consecutiveNormalAttacks = 0;
+    this.damageReceived = 0;
+
+    // Add moon power flag
+    this.hasMoonPower = false;
+  }
+
+  initializeSpecialAnimations() {
+    if (this.stats.name === 'Doge') {
+      // Much Wow animation (Special Skill 1)
+      this.specialAnimations.muchWow = {
+        create: () => {
+          // Create sparkling particle effect around the character
+          const particles = this.scene.add.particles('skill1');
+          particles.setDepth(1); // Set above character
+          const emitter = particles.createEmitter({
+            x: this.sprite.x,
+            y: this.sprite.y,
+            speed: { min: 30, max: 80 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 0.3, end: 0 },
+            blendMode: 'ADD',
+            lifespan: { min: 600, max: 800 },
+            tint: [0xFFD700, 0xFFF000, 0xFFFFFF], // Gold and white colors
+            quantity: 2,
+            frequency: 50,
+            alpha: { start: 0.6, end: 0 },
+            rotate: { min: -180, max: 180 }
+          });
+
+          // Add a glow effect to the character
+          if (this.sprite.preFX) {
+            this.sprite.preFX.clear();
+            this.sprite.preFX.addGlow(0xFFD700, 0.8, 0, false, 0.1, 16);
+          }
+
+          // Play skill 1 sound effect
+          const skill1Sound = this.scene.sound.add('skill1', { volume: 0.3 });
+          skill1Sound.play();
+
+          // Create small wow text effects that appear randomly around character
+          const createWowText = () => {
+            if (!particles.active) return; // Stop if particles are destroyed
+            
+            const offsetX = (Math.random() - 0.5) * 60;
+            const offsetY = (Math.random() - 0.5) * 60;
+            const wowText = this.scene.add.text(
+              this.sprite.x + offsetX,
+              this.sprite.y + offsetY,
+              'wow!',
+              {
+                fontSize: '16px',
+                fill: '#FFD700',
+                stroke: '#000',
+                strokeThickness: 2
+              }
+            ).setOrigin(0.5).setDepth(1);
+
+            // Add fade out and float up animation
+            this.scene.tweens.add({
+              targets: wowText,
+              y: wowText.y - 20,
+              alpha: 0,
+              duration: 800,
+              ease: 'Power1',
+              onComplete: () => {
+                if (wowText && !wowText.destroyed) wowText.destroy();
+              }
+            });
+          };
+
+          // Create wow texts periodically
+          const textInterval = this.scene.time.addEvent({
+            delay: 200,
+            callback: createWowText,
+            repeat: 7 // Create 8 texts total
+          });
+
+          // Schedule cleanup after 1.8 seconds
+          this.scene.time.delayedCall(1800, () => {
+            // Stop and cleanup particles
+            if (particles && !particles.destroyed) {
+              emitter.stop();
+              particles.destroy();
+            }
+            // Stop sound
+            if (skill1Sound) {
+              skill1Sound.stop();
+            }
+            // Stop text creation
+            if (textInterval) {
+              textInterval.remove();
+            }
+            // Reset character glow
+            if (this.sprite.preFX) {
+              this.sprite.preFX.clear();
+              this.sprite.preFX.addGlow(this.stats.color || 0xff0000, 0.5, 0, false, 0.1, 16);
+            }
+            // Reset animation state
+            this.currentSpecialAnimation = null;
+          });
+
+          return { particles, emitter, skill1Sound, textInterval };
+        },
+        update: (elements) => {
+          // Update particle position to follow character
+          if (elements.emitter && !elements.emitter.destroyed) {
+            elements.emitter.setPosition(this.sprite.x, this.sprite.y);
+          }
+        },
+        destroy: (elements) => {
+          try {
+            // Stop and cleanup particles
+            if (elements.particles && !elements.particles.destroyed) {
+              if (elements.emitter) elements.emitter.stop();
+              elements.particles.destroy();
+            }
+            // Stop sound
+            if (elements.skill1Sound) {
+              elements.skill1Sound.stop();
+            }
+            // Stop text creation
+            if (elements.textInterval) {
+              elements.textInterval.remove();
+            }
+            // Reset character glow
+            if (this.sprite.preFX) {
+              this.sprite.preFX.clear();
+              this.sprite.preFX.addGlow(this.stats.color || 0xff0000, 0.5, 0, false, 0.1, 16);
+            }
+          } catch (error) {
+            console.error('Error in muchWow animation destroy:', error);
+          }
+        }
+      };
+
+      // To The Moon animation (Special Skill 2)
+      this.specialAnimations.toTheMoon = {
+        create: () => {
+          try {
+            // Add flag to track if animation is active
+            this.isToTheMoonActive = true;
+
+            // Play moon sound effect
+            const skill2Sound = this.scene.sound.add('skill2', { volume: 0.3 });
+            skill2Sound.play();
+
+            // Add dark overlay with lowest depth
+            const darkOverlay = this.scene.add.rectangle(400, 300, 800, 600, 0x000033, 0.3);
+            darkOverlay.setDepth(-1);
+
+            // Create moon sprite with medium depth
+            const moon = this.scene.add.sprite(400, 80, 'skill2');
+            moon.setScale(0.3);
+            moon.setDepth(-1);
+            moon.setAlpha(0.8);
+
+            if (moon.preFX) {
+              moon.preFX.addGlow(0xFFFFFF, 0.3, 0, false, 0.1, 16);
+            }
+
+            // Add healing effect
+            this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + 10);
+            this.updateBars();
+            this.addLogMessage('Moon power heals 10 HP!', '#00ff00');
+
+            // Set moon power flag
+            this.hasMoonPower = true;
+
+            // Store all trails for cleanup
+            const trails = [];
+
+            // Animate character jumping with reduced trail effect
+            const jumpHeight = -150;
+            this.scene.tweens.add({
+              targets: this.sprite,
+              y: this.sprite.y + jumpHeight,
+              duration: 1000,
+              ease: 'Power2',
+              yoyo: true,
+              onUpdate: () => {
+                if (Math.random() < 0.15) {
+                  const trail = this.scene.add.sprite(this.sprite.x, this.sprite.y, this.sprite.texture.key);
+                  trail.setScale(this.sprite.scaleX * 0.7, this.sprite.scaleY * 0.7);
+                  trail.setAlpha(0.15);
+                  trail.setTint(0x4169E1);
+                  trail.setDepth(0);
+                  trails.push(trail);
+                  this.scene.tweens.add({
+                    targets: trail,
+                    alpha: 0,
+                    duration: 150,
+                    onComplete: () => {
+                      if (trail && !trail.destroyed) {
+                        trail.destroy();
+                        const index = trails.indexOf(trail);
+                        if (index > -1) trails.splice(index, 1);
+                      }
+                    }
+                  });
+                }
+              },
+              onComplete: () => {
+                this.sprite.y = this.groundY;
+              }
+            });
+
+            // Schedule cleanup exactly at 4 seconds
+            this.scene.time.delayedCall(4000, () => {
+              // Only proceed with cleanup if animation is still active
+              if (this.isToTheMoonActive) {
+                // Stop moon sound
+                if (skill2Sound) {
+                  skill2Sound.stop();
+                }
+
+                // Remove moon power
+                this.hasMoonPower = false;
+                this.addLogMessage('Moon power fades away', '#ffff00');
+
+                // Fade out and destroy all effects
+                const elementsToFade = [darkOverlay, moon];
+                this.scene.tweens.add({
+                  targets: elementsToFade,
+                  alpha: 0,
+                  duration: 200,
+                  onComplete: () => {
+                    // Clean up all elements
+                    elementsToFade.forEach(element => {
+                      if (element && !element.destroyed) {
+                        if (element.preFX) element.preFX.clear();
+                        element.destroy();
+                      }
+                    });
+
+                    // Clean up any remaining trails
+                    trails.forEach(trail => {
+                      if (trail && !trail.destroyed) {
+                        trail.destroy();
+                      }
+                    });
+                    trails.length = 0;
+
+                    // Reset sprite effects
+                    if (this.sprite && this.sprite.preFX) {
+                      this.sprite.clearTint();
+                      this.sprite.preFX.clear();
+                      this.sprite.preFX.addGlow(this.stats.color || 0xff0000, 0.5, 0, false, 0.1, 16);
+                    }
+
+                    // Reset animation flags
+                    this.isToTheMoonActive = false;
+                    this.currentSpecialAnimation = null;
+                  }
+                });
+              }
+            });
+
+            return { moon, darkOverlay, skill2Sound, trails };
+          } catch (error) {
+            console.error('Error in toTheMoon animation create:', error);
+            return {};
+          }
+        },
+        update: (elements) => {
+          // No update needed
+        },
+        destroy: (elements) => {
+          try {
+            // Only allow destroy if animation has completed its 4 seconds
+            if (!this.isToTheMoonActive) {
+              // Stop sound first
+              if (elements.skill2Sound) {
+                elements.skill2Sound.stop();
+              }
+
+              // Clean up moon and overlay
+              ['moon', 'darkOverlay'].forEach(key => {
+                if (elements[key] && !elements[key].destroyed) {
+                  if (elements[key].preFX) elements[key].preFX.clear();
+                  elements[key].destroy();
+                }
+              });
+
+              // Clean up any remaining trails
+              if (elements.trails) {
+                elements.trails.forEach(trail => {
+                  if (trail && !trail.destroyed) {
+                    trail.destroy();
+                  }
+                });
+                elements.trails.length = 0;
+              }
+
+              // Reset sprite effects
+              if (this.sprite && this.sprite.preFX) {
+                this.sprite.clearTint();
+                this.sprite.preFX.clear();
+                this.sprite.preFX.addGlow(this.stats.color || 0xff0000, 0.5, 0, false, 0.1, 16);
+              }
+            }
+          } catch (error) {
+            console.error('Error in toTheMoon animation destroy:', error);
+          }
+        }
+      };
+    }
   }
 
   showUI() {
-    this.uiGroup.setVisible(true);
+    // Only show UI if we're in BattleScene
+    if (this.scene.scene.key === 'BattleScene') {
+      this.uiGroup.setVisible(true);
+      if (this.logBackground) this.logBackground.setVisible(true);
+      this.logTexts.forEach(text => text.setVisible(true));
+    } else {
+      // Hide logs in other scenes
+      this.uiGroup.setVisible(true);
+      if (this.logBackground) this.logBackground.setVisible(false);
+      this.logTexts.forEach(text => text.setVisible(false));
+    }
   }
 
   hideUI() {
     this.uiGroup.setVisible(false);
+    if (this.logBackground) this.logBackground.setVisible(false);
+    this.logTexts.forEach(text => text.setVisible(false));
   }
 
   updateBars() {
@@ -256,6 +604,9 @@ class Fighter {
     this.gainMana(damage * 0.5);
     this.updateBars();
 
+    // Track damage received for skill probability
+    this.damageReceived += damage;
+
     // Play hit sound with reduced volume
     this.scene.sound.play('hit', { volume: 0.2 });
 
@@ -302,7 +653,9 @@ class Fighter {
 
   gainMana(amount) {
     const oldMana = this.stats.mana;
-    this.stats.mana = Math.min(this.stats.maxMana, this.stats.mana + amount);
+    // Increase mana gain by 100% to ensure enough mana for skill 2
+    const adjustedAmount = amount * 2;
+    this.stats.mana = Math.min(this.stats.maxMana, this.stats.mana + adjustedAmount);
     const gainedMana = this.stats.mana - oldMana;
 
     if (gainedMana > 0) {
@@ -315,10 +668,22 @@ class Fighter {
   useSpecialSkill(skillNumber) {
     const cost = skillNumber === 1 ? this.stats.specialSkill1Cost : this.stats.specialSkill2Cost;
     if (this.stats.mana >= cost) {
+      // Stop any existing animation first
+      if (this.currentSpecialAnimation) {
+        this.stopSpecialAnimation();
+      }
+
       this.stats.mana -= cost;
       this.updateBars();
       const skillName = skillNumber === 1 ? this.stats.specialSkill1Name : this.stats.specialSkill2Name;
       this.addLogMessage(`Using ${skillName}!`, '#00ff00');
+
+      // Start animation based on skill
+      if (this.stats.name === 'Doge') {
+        const animationKey = skillNumber === 1 ? 'muchWow' : 'toTheMoon';
+        this.startSpecialAnimation(animationKey);
+      }
+
       return true;
     }
     return false;
@@ -329,13 +694,21 @@ class Fighter {
     const damage = this.stats.baseAttack * (isCritical ? 2 : 1);
     const actualDamage = target.takeDamage(damage);
 
+    // Add moon power healing if active
+    if (this.hasMoonPower && this.stats.name === 'Doge') {
+      this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + 2);
+      this.updateBars();
+      this.addLogMessage('Moon power heals 2 HP', '#00ff00');
+    }
+
     // Add log message for attack
     this.addLogMessage(
       `Attack${isCritical ? ' CRITICAL' : ''} for ${actualDamage}!`,
       isCritical ? '#ff0000' : '#ffffff'
     );
 
-    this.gainMana(actualDamage * 0.3);
+    // Increase mana gain from attacks
+    this.gainMana(actualDamage * 0.6);
     return { damage: actualDamage, isCritical };
   }
 
@@ -464,6 +837,11 @@ class Fighter {
 
       // Update hitbox position with sprite movement
       this.hitbox.x = this.sprite.x;
+
+      // Update current special animation if exists
+      if (this.currentSpecialAnimation) {
+        this.currentSpecialAnimation.update();
+      }
     } catch (error) {
       console.error('Error in Fighter update:', error);
     }
@@ -631,79 +1009,133 @@ class Fighter {
     if (!this.scene || !opponent) return;
 
     try {
-      // Check hitbox collision before attack
-      const hitboxesOverlap = Phaser.Geom.Rectangle.Overlaps(
+      const currentTime = this.scene.time.now;
+      const distance = Math.abs(this.sprite.x - opponent.sprite.x);
+
+      // Check if we can attack
+      const canAttack = Phaser.Geom.Rectangle.Overlaps(
         this.hitbox.getBounds(),
         opponent.hitbox.getBounds()
-      );
-
-      // Allow attack if overlapping or very close
-      const distance = Math.abs(this.sprite.x - opponent.sprite.x);
-      const canAttack = hitboxesOverlap || distance <= this.attackRange;
+      ) || distance <= this.attackRange;
 
       if (!canAttack && !this.isJumping) {
-        // If not in range, try to get closer
         this.approachOpponent(opponent);
         return;
       }
 
-      // Add attack animation
-      const originalX = this.sprite.x;
-      const attackDistance = this.sprite.texture.key === '__DEFAULT' ? 30 : 40;
-      const attackDuration = 200;
-
-      this.scene.tweens.add({
-        targets: [this.sprite, this.hitbox],
-        x: this.sprite.x + (this.sprite.x < opponent.sprite.x ? attackDistance : -attackDistance),
-        duration: attackDuration / 2,
-        ease: 'Power1',
-        yoyo: true,
-        onComplete: () => {
-          this.sprite.x = originalX;
-          this.hitbox.x = originalX;
-        }
-      });
-
-      // Add attack effects based on sprite type
+      // Special skill logic for custom sprites
       if (this.sprite.texture.key !== '__DEFAULT') {
-        if (this.stats.mana >= this.stats.specialSkill2Cost) {
-          // Powerful special attack
-          if (this.useSpecialSkill(2)) {
-            if (this.sprite.preFX) {
-              const glowFX = this.sprite.preFX.addGlow(0xffff00, 1);
-              this.scene.tweens.add({
-                targets: glowFX,
-                intensity: 0,
-                duration: 500,
-                onComplete: () => glowFX.remove()
-              });
-            }
-            this.scene.attackFighter(this, opponent, 2);
-          }
-        } else if (this.stats.mana >= this.stats.specialSkill1Cost && Math.random() < 0.7) {
-          // Regular special attack
-          if (this.useSpecialSkill(1)) {
-            if (this.sprite.preFX) {
-              const glowFX = this.sprite.preFX.addGlow(0x00ff00, 0.8);
-              this.scene.tweens.add({
-                targets: glowFX,
-                intensity: 0,
-                duration: 300,
-                onComplete: () => glowFX.remove()
-              });
-            }
-            this.scene.attackFighter(this, opponent, 1);
-          }
-        } else {
-          // Regular attack
-          this.scene.attackFighter(this, opponent, 0);
+        const skill1Cost = this.stats.specialSkill1Cost;
+        const skill2Cost = this.stats.specialSkill2Cost;
+        const currentMana = this.stats.mana;
+
+        // Update cooldown timers
+        const skill1Ready = currentTime > this.skillCooldowns.skill1.timer;
+        const skill2Ready = currentTime > this.skillCooldowns.skill2.timer;
+
+        if (skill1Ready) this.skillCooldowns.skill1.timer = 0;
+        if (skill2Ready) this.skillCooldowns.skill2.timer = 0;
+
+        // Check if skills are available
+        const canUseSkill1 = currentMana >= skill1Cost && skill1Ready;
+        const canUseSkill2 = currentMana >= skill2Cost && skill2Ready;
+
+        // Force skill 2 usage when available
+        let selectedSkill = 0;
+
+        // Always try to use skill 2 first if available
+        if (canUseSkill2) {
+          selectedSkill = 2;
+          // Stop any existing animations before starting new one
+          this.stopSpecialAnimation();
         }
+        // Use skill 1 only if skill 2 is not available
+        else if (canUseSkill1 && !canUseSkill2) {
+          selectedSkill = 1;
+          // Stop any existing animations before starting new one
+          this.stopSpecialAnimation();
+        }
+
+        // Try to use selected skill
+        if (selectedSkill > 0) {
+          if (this.useSpecialSkill(selectedSkill)) {
+            // Short cooldown to ensure more frequent usage
+            const cooldownDuration = selectedSkill === 2 ? 2000 : 1500;
+            this.skillCooldowns[`skill${selectedSkill}`].timer = currentTime + cooldownDuration;
+
+            // Reset tracking variables
+            this.consecutiveNormalAttacks = 0;
+            this.damageReceived = 0;
+
+            // Execute the attack
+            this.scene.attackFighter(this, opponent, selectedSkill);
+            return;
+          }
+        }
+
+        // If no special skill was used, do regular attack
+        this.consecutiveNormalAttacks++;
+        this.scene.attackFighter(this, opponent, 0);
       } else {
-        // Simplified effects for default rectangle
+        // Default rectangle fighters just do regular attacks
         this.scene.attackFighter(this, opponent, 0);
       }
+
+      this.lastAttackTime = currentTime;
     } catch (error) {
       console.error('Error in performAttack:', error);
+    }
+  }
+
+  startSpecialAnimation(animationKey) {
+    try {
+      // Stop any current animation and ensure cleanup
+      if (this.currentSpecialAnimation) {
+        this.currentSpecialAnimation.destroy();
+        this.currentSpecialAnimation = null;
+      }
+
+      // Get animation configuration
+      const animation = this.specialAnimations[animationKey];
+      if (!animation) return;
+
+      // Create animation elements
+      const elements = animation.create();
+
+      // Store current animation
+      this.currentSpecialAnimation = {
+        key: animationKey,
+        elements: elements,
+        update: () => animation.update(elements),
+        destroy: () => {
+          animation.destroy(elements);
+          this.currentSpecialAnimation = null;
+        }
+      };
+
+      // Set timeout to stop animation
+      const duration = animationKey === 'toTheMoon' ? 4000 : 2000;
+      this.scene.time.delayedCall(duration, () => {
+        if (this.currentSpecialAnimation && this.currentSpecialAnimation.key === animationKey) {
+          this.stopSpecialAnimation();
+        }
+      });
+    } catch (error) {
+      console.error('Error in startSpecialAnimation:', error);
+    }
+  }
+
+  stopSpecialAnimation() {
+    try {
+      if (this.currentSpecialAnimation) {
+        // Only stop if it's not To The Moon animation or if To The Moon has completed
+        if (this.currentSpecialAnimation.key !== 'toTheMoon' || !this.isToTheMoonActive) {
+          this.currentSpecialAnimation.destroy();
+          this.currentSpecialAnimation = null;
+        }
+      }
+    } catch (error) {
+      console.error('Error in stopSpecialAnimation:', error);
     }
   }
 } 

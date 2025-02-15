@@ -28,6 +28,21 @@ class BattleScene extends Phaser.Scene {
     this.load.audio('2', 'assets/sounds/effects/2.wav');
     this.load.audio('1', 'assets/sounds/effects/1.wav');
     this.load.audio('fight', 'assets/sounds/effects/fight.mp3');
+
+    // Load special skill assets
+    if (!this.textures.exists('skill1')) {
+      this.load.image('skill1', 'assets/fighters/skills/doge/skill1.png');
+    }
+    if (!this.textures.exists('skill2')) {
+      this.load.image('skill2', 'assets/fighters/skills/doge/skill2.png');
+    }
+    // Load special skill sounds
+    if (!this.sound.get('skill1')) {
+      this.load.audio('skill1', 'assets/sounds/effects/skills/doge/skill1.mp3');
+    }
+    if (!this.sound.get('skill2')) {
+      this.load.audio('skill2', 'assets/sounds/effects/skills/doge/skill2.mp3');
+    }
   }
 
   init(data) {
