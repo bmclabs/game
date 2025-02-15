@@ -142,13 +142,13 @@ class Fighter {
         this.maxLogMessages = 4;
         
         // Create logger container with adjusted position
-        const loggerY = scene.game.config.height - 180; // Moved up higher
+        const loggerY = scene.game.config.height - 100; // Moved down more
         const loggerX = isPlayer1 ? 20 : scene.game.config.width - 20;
         
         // Create log background
         this.logBackground = scene.add.rectangle(
             isPlayer1 ? 125 : scene.game.config.width - 125,
-            scene.game.config.height - 120,
+            scene.game.config.height - 70, // Adjusted to match new position
             250,
             120,
             0x000000,
@@ -256,15 +256,40 @@ class Fighter {
         this.gainMana(damage * 0.5);
         this.updateBars();
         
-        // Add damage effects based on sprite type
-        if (this.sprite.texture.key !== '__DEFAULT' && this.sprite.preFX) {
-            const flashFX = this.sprite.preFX.addFlash(0xff0000);
+        // Enhanced damage effects
+        if (this.sprite.texture.key !== '__DEFAULT') {
+            // Add flash effect
+            if (this.sprite.preFX) {
+                const flashFX = this.sprite.preFX.addFlash(0xff0000);
+                this.scene.tweens.add({
+                    targets: flashFX,
+                    intensity: 1,
+                    duration: 100,
+                    yoyo: true,
+                    onComplete: () => flashFX.remove()
+                });
+            }
+            
+            // Add color tint effect
+            this.sprite.setTint(0xff0000);
+            this.scene.time.delayedCall(200, () => {
+                this.sprite.clearTint();
+            });
+            
+            // Add shake effect
             this.scene.tweens.add({
-                targets: flashFX,
-                intensity: 1,
-                duration: 100,
+                targets: this.sprite,
+                x: this.sprite.x + 10,
+                duration: 50,
                 yoyo: true,
-                onComplete: () => flashFX.remove()
+                repeat: 2,
+                ease: 'Power1'
+            });
+        } else {
+            // For default rectangle fighters
+            this.sprite.setFillStyle(0xff0000);
+            this.scene.time.delayedCall(200, () => {
+                this.sprite.setFillStyle(this.stats.color || 0xff0000);
             });
         }
         
