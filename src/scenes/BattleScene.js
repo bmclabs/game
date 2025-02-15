@@ -9,246 +9,279 @@ class BattleScene extends Phaser.Scene {
     this.fighter2Stats = data.fighter2Stats;
     this.isGameActive = true;
     this.lastUpdateTime = 0;
+    this.isTransitioning = false;
   }
 
   create() {
-    // Set background
-    this.add.rectangle(400, 300, 800, 600, 0x000033);
+    try {
+      // Set background
+      this.add.rectangle(400, 300, 800, 600, 0x000033);
 
-    // Add battle stage platform
-    this.add.rectangle(400, 500, 700, 40, 0x333333);
+      // Add battle stage platform
+      this.add.rectangle(400, 500, 700, 40, 0x333333);
 
-    // Create fighters
-    this.fighter1 = new Fighter(this, 200, 400, this.fighter1Stats, true);
-    this.fighter2 = new Fighter(this, 600, 400, this.fighter2Stats, false);
+      // Create fighters
+      this.fighter1 = new Fighter(this, 200, 400, this.fighter1Stats, true);
+      this.fighter2 = new Fighter(this, 600, 400, this.fighter2Stats, false);
 
-    // Show UI for both fighters
-    this.fighter1.showUI();
-    this.fighter2.showUI();
+      // Show UI for both fighters
+      this.fighter1.showUI();
+      this.fighter2.showUI();
 
-    // Add battle timer
-    this.battleTimer = 60;
-    this.timerText = this.add.text(400, 50, '', {
-      fontSize: '48px',
-      fill: '#fff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+      // Add battle timer
+      this.battleTimer = 60;
+      this.timerText = this.add.text(400, 50, '', {
+        fontSize: '48px',
+        fill: '#fff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
 
-    // Add round number
-    this.roundText = this.add.text(400, 15, `ROUND ${this.roundNumber}`, {
-      fontSize: '24px',
-      fill: '#fff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+      // Add round number
+      this.roundText = this.add.text(400, 15, `ROUND ${this.roundNumber}`, {
+        fontSize: '24px',
+        fill: '#fff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
 
-    // Add battle feedback text
-    this.feedbackText = this.add.text(400, 200, '', {
-      fontSize: '24px',
-      fill: '#fff',
-      align: 'center'
-    }).setOrigin(0.5);
+      // Add round result text (hidden initially)
+      this.roundResultText = this.add.text(400, 250, '', {
+        fontSize: '48px',
+        fill: '#ffd700',
+        align: 'center',
+        fontStyle: 'bold'
+      }).setOrigin(0.5).setVisible(false);
 
-    // Add round result text (hidden initially)
-    this.roundResultText = this.add.text(400, 300, '', {
-      fontSize: '48px',
-      fill: '#ffd700',
-      align: 'center',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setVisible(false);
+      // Add victory text (hidden initially)
+      this.victoryText = this.add.text(400, 350, '', {
+        fontSize: '64px',
+        fill: '#ffd700',
+        align: 'center',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 6
+      }).setOrigin(0.5).setVisible(false);
 
-    // Add victory text (hidden initially)
-    this.victoryText = this.add.text(400, 300, '', {
-      fontSize: '64px',
-      fill: '#ffd700',
-      align: 'center',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setVisible(false);
+      // Start the battle timer
+      this.timerEvent = this.time.addEvent({
+        delay: 1000,
+        callback: this.updateTimer,
+        callbackScope: this,
+        loop: true
+      });
 
-    // Start the battle timer
-    this.time.addEvent({
-      delay: 1000,
-      callback: this.updateTimer,
-      callbackScope: this,
-      loop: true
-    });
-
-    // Set initial action delays for fighters
-    this.fighter1.nextActionTime = this.time.now + Math.random() * 1000;
-    this.fighter2.nextActionTime = this.time.now + Math.random() * 1000;
+      // Set initial action delays for fighters
+      this.fighter1.nextActionTime = this.time.now + Math.random() * 1000;
+      this.fighter2.nextActionTime = this.time.now + Math.random() * 1000;
+    } catch (error) {
+      console.error('Error in BattleScene create:', error);
+    }
   }
 
   update(time) {
-    if (!this.isGameActive) return;
+    if (!this.isGameActive || this.isTransitioning) return;
 
-    // Ensure consistent update rate
-    if (time - this.lastUpdateTime < 16) return; // ~60 FPS
-    this.lastUpdateTime = time;
+    try {
+      // Ensure consistent update rate
+      if (time - this.lastUpdateTime < 16) return; // ~60 FPS
+      this.lastUpdateTime = time;
 
-    // Update fighters' AI with current game time
-    this.fighter1.update(time, this.fighter2);
-    this.fighter2.update(time, this.fighter1);
-
-    // Check if fighters are stuck and reset their positions if needed
-    this.checkAndResetFighterPositions();
-  }
-
-  checkAndResetFighterPositions() {
-    const distance = Math.abs(this.fighter1.sprite.x - this.fighter2.sprite.x);
-
-    // If fighters are too close or too far for too long, reset their positions
-    if (distance < 30 || distance > 600) {
-      this.fighter1.sprite.x = 200;
-      this.fighter2.sprite.x = 600;
-      this.fighter1.targetPosition = this.fighter1.sprite.x;
-      this.fighter2.targetPosition = this.fighter2.sprite.x;
-      this.fighter1.isMovingRight = Math.random() < 0.5;
-      this.fighter2.isMovingRight = Math.random() < 0.5;
+      // Update fighters' AI with current game time
+      if (this.fighter1 && this.fighter2) {
+        this.fighter1.update(time, this.fighter2);
+        this.fighter2.update(time, this.fighter1);
+      }
+    } catch (error) {
+      console.error('Error in BattleScene update:', error);
     }
   }
 
   attackFighter(attacker, target, skillType = 0) {
-    if (!this.isGameActive) return;
+    if (!this.isGameActive || !attacker || !target) return;
 
-    if (skillType === 0) {
-      // Regular attack
-      const result = attacker.attack(target);
-      this.showFeedback(
-        `${attacker.stats.name} hits for ${result.damage}${result.isCritical ? ' CRITICAL!' : ''}`,
-        result.isCritical ? '#ff0000' : '#ffffff'
-      );
-    } else {
-      // Special skill attack
-      const skillName = skillType === 1 ? attacker.stats.specialSkill1Name : attacker.stats.specialSkill2Name;
-      const damage = skillType === 1 ? attacker.stats.baseAttack * 2 : attacker.stats.baseAttack * 3;
-      const actualDamage = target.takeDamage(damage);
-      this.showFeedback(
-        `${attacker.stats.name} uses ${skillName} for ${actualDamage} damage!`,
-        '#00ff00'
-      );
+    try {
+      if (skillType === 0) {
+        // Regular attack
+        const result = attacker.attack(target);
+      } else {
+        // Special skill attack
+        const skillName = skillType === 1 ? attacker.stats.specialSkill1Name : attacker.stats.specialSkill2Name;
+        const damage = skillType === 1 ? attacker.stats.baseAttack * 2 : attacker.stats.baseAttack * 3;
+        const actualDamage = target.takeDamage(damage);
+      }
+
+      if (target.stats.hp <= 0) {
+        this.endRound(attacker, true); // true indicates KO victory
+      }
+    } catch (error) {
+      console.error('Error in attackFighter:', error);
     }
-
-    if (target.stats.hp <= 0) {
-      this.endRound(attacker, true); // true indicates KO victory
-    }
-  }
-
-  showFeedback(text, color = '#ffffff') {
-    this.feedbackText.setText(text);
-    this.feedbackText.setColor(color);
-    this.time.delayedCall(1000, () => {
-      this.feedbackText.setText('');
-    });
   }
 
   showRoundResult(winner, isKO = false) {
-    const resultText = isKO ? 'ROUND WIROUND WIN!' : 'ROUND WIN!';
-    this.roundResultText.setText(`${winner.stats.name}\n${resultText}`);
-    this.roundResultText.setVisible(true);
+    if (!winner) return;
 
-    // Add scaling animation
-    this.tweens.add({
-      targets: this.roundResultText,
-      scaleX: 1.2,
-      scaleY: 1.2,
-      duration: 500,
-      yoyo: true,
-      repeat: 2,
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
-        this.roundResultText.setVisible(false);
-      }
-    });
+    try {
+      const resultText = isKO ? 'K.O!' : 'ROUND WIN!';
+      this.roundResultText.setText(`${winner.stats.name}\n${resultText}`);
+      this.roundResultText.setVisible(true);
+
+      // Add log message for round result
+      winner.addLogMessage('Won the round!', '#ffd700');
+      
+      // Add scaling animation
+      this.tweens.add({
+        targets: this.roundResultText,
+        scaleX: 1.2,
+        scaleY: 1.2,
+        duration: 500,
+        yoyo: true,
+        repeat: 2,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          this.roundResultText.setVisible(false);
+          this.roundResultText.setScale(1);
+          
+          if (winner.roundsWon >= 2) {
+            this.showVictoryAnimation(winner);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error in showRoundResult:', error);
+    }
   }
 
   startNextRound() {
-    // Reset fighters but keep their round wins
-    this.fighter1.reset();
-    this.fighter2.reset();
+    try {
+      // Reset fighters but keep their round wins
+      this.fighter1.reset();
+      this.fighter2.reset();
 
-    // Reset game state
-    this.isGameActive = true;
-    this.battleTimer = 60;
+      // Reset game state
+      this.isGameActive = true;
+      this.isTransitioning = false;
+      this.battleTimer = 60;
 
-    // Reset fighter positions
-    this.fighter1.sprite.x = 200;
-    this.fighter2.sprite.x = 600;
+      // Reset fighter positions
+      this.fighter1.sprite.x = 200;
+      this.fighter2.sprite.x = 600;
 
-    // Update round number
-    this.roundNumber++;
-    this.roundText.setText(`ROUND ${this.roundNumber}`);
+      // Update round number
+      this.roundNumber++;
+      this.roundText.setText(`ROUND ${this.roundNumber}`);
+    } catch (error) {
+      console.error('Error in startNextRound:', error);
+    }
   }
 
   startNewMatch() {
-    // Select new random fighters
-    const availableFighters = [...CHARACTERS];
-    const newFighter1 = availableFighters.splice(Math.floor(Math.random() * availableFighters.length), 1)[0];
-    const newFighter2 = availableFighters[Math.floor(Math.random() * availableFighters.length)];
+    try {
+      this.isTransitioning = true;
+      
+      // Clean up current scene
+      this.fighter1.hideUI();
+      this.fighter2.hideUI();
+      
+      // Select new random fighters
+      const availableFighters = [...CHARACTERS];
+      const newFighter1 = availableFighters.splice(Math.floor(Math.random() * availableFighters.length), 1)[0];
+      const newFighter2 = availableFighters[Math.floor(Math.random() * availableFighters.length)];
 
-    // Start preparation phase with new fighters
-    this.scene.start('PreparationScene', {
-      roundNumber: 1,
-      fighter1Stats: newFighter1,
-      fighter2Stats: newFighter2
-    });
+      // Start preparation phase with new fighters
+      this.scene.start('PreparationScene', {
+        roundNumber: 1,
+        fighter1Stats: newFighter1,
+        fighter2Stats: newFighter2
+      });
+    } catch (error) {
+      console.error('Error in startNewMatch:', error);
+    }
   }
 
   showVictoryAnimation(winner) {
-    this.victoryText.setText(`${winner.stats.name}\nWINS THE MATCH!`);
-    this.victoryText.setVisible(true);
+    if (!winner) return;
 
-    // Add scaling animation
-    this.tweens.add({
-      targets: this.victoryText,
-      scaleX: 1.2,
-      scaleY: 1.2,
-      duration: 500,
-      yoyo: true,
-      repeat: 4,
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
-        // After 5 seconds, start new match
-        this.time.delayedCall(5000, () => {
-          this.startNewMatch();
-        });
+    try {
+      this.isTransitioning = true;
+      this.victoryText.setText(`${winner.stats.name}\nWINS THE MATCH!`);
+      this.victoryText.setVisible(true);
+      this.victoryText.setScale(1);
+
+      // Add log message for match victory
+      winner.addLogMessage('Won the match!', '#ffd700');
+
+      // Hide round result text if it's still visible
+      if (this.roundResultText.visible) {
+        this.roundResultText.setVisible(false);
       }
-    });
+
+      // Add scaling animation
+      this.tweens.add({
+        targets: this.victoryText,
+        scaleX: 1.2,
+        scaleY: 1.2,
+        duration: 500,
+        yoyo: true,
+        repeat: 4,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          this.victoryText.setVisible(false);
+          this.victoryText.setScale(1);
+          
+          // Ensure we transition to the next match
+          this.time.delayedCall(3000, () => {
+            if (this.scene) {
+              this.startNewMatch();
+            }
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error in showVictoryAnimation:', error);
+    }
   }
 
   endRound(winner, isKO) {
-    this.isGameActive = false;
+    if (!winner || this.isTransitioning) return;
 
-    // Show round result animation
-    this.showRoundResult(winner, isKO);
+    try {
+      this.isGameActive = false;
+      this.isTransitioning = true;
 
-    // Increment winner's round count
-    winner.winRound();
+      // Increment winner's round count
+      winner.winRound();
 
-    // Check if either fighter has won 2 rounds
-    if (this.fighter1.roundsWon >= 2 || this.fighter2.roundsWon >= 2) {
-      // Show victory animation after round result
-      this.time.delayedCall(2000, () => {
-        this.showVictoryAnimation(winner);
-      });
-    } else {
-      // After 3 seconds, start next round in the same scene
-      this.time.delayedCall(3000, () => {
-        this.startNextRound();
-      });
+      // Show round result animation
+      this.showRoundResult(winner, isKO);
+
+      // If no winner yet, start next round after delay
+      if (winner.roundsWon < 2) {
+        this.time.delayedCall(3000, () => {
+          this.isTransitioning = false;
+          this.startNextRound();
+        });
+      }
+    } catch (error) {
+      console.error('Error in endRound:', error);
     }
   }
 
   updateTimer() {
-    if (!this.isGameActive) return;
+    if (!this.isGameActive || this.isTransitioning) return;
 
-    this.battleTimer--;
-    this.timerText.setText(this.battleTimer.toString());
+    try {
+      this.battleTimer--;
+      this.timerText.setText(this.battleTimer.toString());
 
-    if (this.battleTimer <= 0) {
-      // When time's up, fighter with more HP percentage wins the round
-      const fighter1HPPercent = (this.fighter1.stats.hp / this.fighter1.stats.maxHp) * 100;
-      const fighter2HPPercent = (this.fighter2.stats.hp / this.fighter2.stats.maxHp) * 100;
-      const winner = fighter1HPPercent > fighter2HPPercent ? this.fighter1 : this.fighter2;
-      this.endRound(winner, false); // false indicates time-up victory
+      if (this.battleTimer <= 0) {
+        // When time's up, fighter with more HP percentage wins the round
+        const fighter1HPPercent = (this.fighter1.stats.hp / this.fighter1.stats.maxHp) * 100;
+        const fighter2HPPercent = (this.fighter2.stats.hp / this.fighter2.stats.maxHp) * 100;
+        const winner = fighter1HPPercent > fighter2HPPercent ? this.fighter1 : this.fighter2;
+        this.endRound(winner, false); // false indicates time-up victory
+      }
+    } catch (error) {
+      console.error('Error in updateTimer:', error);
     }
   }
 } 
