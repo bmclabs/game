@@ -17,6 +17,9 @@ class PreparationScene extends Phaser.Scene {
 
       // Load VS image
       this.load.image('vs', 'assets/preparation/vs.png');
+      
+      // Load preparation background
+      this.load.image('prep_bg', 'assets/preparation/bg.png');
 
       // Load arena backgrounds
       for (let i = 1; i <= 5; i++) {
@@ -36,14 +39,20 @@ class PreparationScene extends Phaser.Scene {
 
   create() {
     try {
-      // Set dark background color
-      this.cameras.main.setBackgroundColor('#000033');
+      // Set preparation background
+      this.background = this.add.image(400, 300, 'prep_bg');
+      this.background.setDisplaySize(800, 600);
+      
+      // Make sure background is behind everything
+      this.background.setDepth(-1);
 
       // Add semi-transparent overlay for better text visibility
-      this.add.rectangle(400, 300, 800, 600, 0x000033, 0.3);
+      this.overlay = this.add.rectangle(400, 300, 800, 600, 0x000033, 0.3);
+      this.overlay.setDepth(-0.5);
 
       // Add battle stage platform with transparency
-      this.add.rectangle(400, 500, 700, 40, 0x333333, 0.7);
+      this.platform = this.add.rectangle(400, 500, 700, 40, 0x333333, 0.7);
+      this.platform.setDepth(0);
 
       // Add preparation timer with enhanced styling (moved up)
       this.preparationTimer = 15;
