@@ -320,6 +320,7 @@ class BattleScene extends Phaser.Scene {
       // Reset fighters but keep their round wins
       this.fighter1.reset();
       this.fighter2.reset();
+      this.roundResultText.setVisible(false)
 
       // Reset game state
       this.isGameActive = false;
