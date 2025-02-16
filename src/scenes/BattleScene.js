@@ -4,44 +4,56 @@ class BattleScene extends Phaser.Scene {
   }
 
   preload() {
-    // Ensure arena backgrounds are loaded
-    for (let i = 1; i <= 6; i++) {
-      if (!this.textures.exists(`arena${i}`)) {
-        this.load.image(`arena${i}`, `assets/arena/arena${i}.png`);
+    try {
+      // Load arena backgrounds
+      for (let i = 1; i <= 6; i++) {
+        if (!this.textures.exists(`arena${i}`)) {
+          this.load.image(`arena${i}`, `assets/arena/arena${i}.png`);
+        }
+        // Ensure background music is loaded
+        if (!this.sound.get(`arena${i}_bgm`)) {
+          this.load.audio(`arena${i}_bgm`, `assets/sounds/background/arena${i}.mp3`);
+        }
       }
-      // Ensure background music is loaded
-      if (!this.sound.get(`arena${i}_bgm`)) {
-        this.load.audio(`arena${i}_bgm`, `assets/sounds/background/arena${i}.mp3`);
+
+      // Load character sprites
+      CHARACTERS.forEach(char => {
+        const spriteName = char.name.toLowerCase();
+        if (!this.textures.exists(spriteName)) {
+          this.load.image(spriteName, `assets/characters/${spriteName}.png`);
+        }
+      });
+
+      // Load sound effects if not already loaded
+      if (!this.sound.get('hit')) {
+        this.load.audio('hit', 'assets/sounds/effects/hit.wav');
       }
-    }
+      if (!this.sound.get('jump')) {
+        this.load.audio('jump', 'assets/sounds/effects/jump.wav');
+      }
 
-    // Load sound effects if not already loaded
-    if (!this.sound.get('hit')) {
-      this.load.audio('hit', 'assets/sounds/effects/hit.wav');
-    }
-    if (!this.sound.get('jump')) {
-      this.load.audio('jump', 'assets/sounds/effects/jump.wav');
-    }
+      // Load countdown sound effects
+      this.load.audio('3', 'assets/sounds/effects/3.wav');
+      this.load.audio('2', 'assets/sounds/effects/2.wav');
+      this.load.audio('1', 'assets/sounds/effects/1.wav');
+      this.load.audio('fight', 'assets/sounds/effects/fight.mp3');
 
-    // Load countdown sound effects
-    this.load.audio('3', 'assets/sounds/effects/3.wav');
-    this.load.audio('2', 'assets/sounds/effects/2.wav');
-    this.load.audio('1', 'assets/sounds/effects/1.wav');
-    this.load.audio('fight', 'assets/sounds/effects/fight.mp3');
-
-    // Load special skill assets
-    if (!this.textures.exists('skill1')) {
-      this.load.image('skill1', 'assets/fighters/skills/doge/skill1.png');
-    }
-    if (!this.textures.exists('skill2')) {
-      this.load.image('skill2', 'assets/fighters/skills/doge/skill2.png');
-    }
-    // Load special skill sounds
-    if (!this.sound.get('skill1')) {
-      this.load.audio('skill1', 'assets/sounds/effects/skills/doge/skill1.mp3');
-    }
-    if (!this.sound.get('skill2')) {
-      this.load.audio('skill2', 'assets/sounds/effects/skills/doge/skill2.mp3');
+      // Load special skill assets
+      if (!this.textures.exists('skill1')) {
+        this.load.image('skill1', 'assets/fighters/skills/doge/skill1.png');
+      }
+      if (!this.textures.exists('skill2')) {
+        this.load.image('skill2', 'assets/fighters/skills/doge/skill2.png');
+      }
+      // Load special skill sounds
+      if (!this.sound.get('skill1')) {
+        this.load.audio('skill1', 'assets/sounds/effects/skills/doge/skill1.mp3');
+      }
+      if (!this.sound.get('skill2')) {
+        this.load.audio('skill2', 'assets/sounds/effects/skills/doge/skill2.mp3');
+      }
+    } catch (error) {
+      console.error('Error in preload:', error);
     }
   }
 
@@ -76,9 +88,9 @@ class BattleScene extends Phaser.Scene {
       this.overlay = this.add.rectangle(400, 300, 800, 600, 0x000033, 0.2);
       this.overlay.setDepth(-0.5);
 
-      // Create fighters
-      this.fighter1 = new Fighter(this, 200, 400, this.fighter1Stats, true);
-      this.fighter2 = new Fighter(this, 600, 400, this.fighter2Stats, false);
+      // Create fighters using createFighter method
+      this.fighter1 = this.createFighter(this.fighter1Stats, true);
+      this.fighter2 = this.createFighter(this.fighter2Stats, false);
 
       // Show UI for both fighters
       this.fighter1.showUI();
@@ -135,7 +147,18 @@ class BattleScene extends Phaser.Scene {
       this.startCountdown();
 
     } catch (error) {
-      console.error('Error in BattleScene create:', error);
+      console.error('Error in create:', error, error.stack);
+    }
+  }
+
+  createFighter(stats, isPlayer1) {
+    const x = isPlayer1 ? 200 : 600;
+    const y = 400;
+
+    if (stats.name === 'Doge') {
+      return new Doge(this, x, y, stats, isPlayer1);
+    } else {
+      return new Fighter(this, x, y, stats, isPlayer1);
     }
   }
 
