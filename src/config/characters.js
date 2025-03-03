@@ -33,12 +33,13 @@ const CHARACTERS = [
     maxMana: 160,
     baseAttack: 16,
     critical: 20,
-    defend: 6,
+    defend: 8,
+    kickProbability: 7,
     specialSkill1Cost: 45,
     specialSkill2Cost: 80,
-    specialSkill1Name: 'Rare Pepe',
-    specialSkill2Name: 'Meme Magic',
-    color: 0x90EE90,
+    specialSkill1Name: 'Poison Strike',
+    specialSkill2Name: 'Pepe Rage',
+    color: 0x00ff00,
     // High risk, high reward fighter
   },
   {

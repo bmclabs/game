@@ -14,7 +14,7 @@ const config = {
             debug: false
         }
     },
-    scene: [PreparationScene, BattleScene]
+    scene: [PreparationScene, BattleScene, TestPepeScene]
 };
 
 // Initialize the game when the window loads

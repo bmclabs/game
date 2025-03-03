@@ -163,6 +163,35 @@ class PreparationScene extends Phaser.Scene {
         callbackScope: this,
         loop: true
       });
+
+      // Add Test Mode button
+      const testButton = this.add.text(700, 550, 'Test Mode', {
+        fontSize: '24px',
+        fill: '#fff',
+        backgroundColor: '#444444',
+        padding: { x: 15, y: 10 },
+        borderRadius: 8
+      })
+      .setOrigin(0.5)
+      .setInteractive()
+      .on('pointerover', () => {
+        testButton.setStyle({ fill: '#ffff00' });
+      })
+      .on('pointerout', () => {
+        testButton.setStyle({ fill: '#ffffff' });
+      })
+      .on('pointerdown', () => {
+        // Stop background music before switching scenes
+        if (this.backgroundMusic) {
+          this.backgroundMusic.stop();
+        }
+        this.scene.start('TestPepeScene');
+      });
+
+      // Add glow effect to test button
+      if (testButton.preFX) {
+        testButton.preFX.addGlow(0x00ff00, 0.5, 0, false, 0.1, 16);
+      }
     } catch (error) {
       console.error('Error in create:', error);
     }

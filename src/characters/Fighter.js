@@ -385,9 +385,9 @@ class Fighter {
 
     // Add moon power healing if active
     if (this.hasMoonPower && this.stats.name === 'Doge') {
-      this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + 2);
+      this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + 10);
       this.updateBars();
-      this.addLogMessage('Moon power heals 2 HP', '#00ff00');
+      this.addLogMessage('Moon power heals 10 HP', '#00ff00');
     }
 
     // Add log message for attack
@@ -816,6 +816,21 @@ class Fighter {
       }
     } catch (error) {
       console.error('Error in stopSpecialAnimation:', error);
+    }
+  }
+
+  defend(isDefending) {
+    if (this.isHit || this.isAttacking) return;
+    
+    this.isDefending = isDefending;
+    
+    if (this.sprite && this.sprite.play) {
+      const characterName = this.constructor.name.toLowerCase();
+      const animKey = isDefending ? `${characterName}_defense` : `${characterName}_idle`;
+      
+      if (this.scene.anims.exists(animKey)) {
+        this.sprite.play(animKey);
+      }
     }
   }
 }

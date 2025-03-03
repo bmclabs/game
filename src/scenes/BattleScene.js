@@ -19,7 +19,7 @@ class BattleScene extends Phaser.Scene {
       // Load character sprites
       CHARACTERS.forEach(char => {
         const spriteName = char.name.toLowerCase();
-        if (!this.textures.exists(spriteName)) {
+        if (spriteName !== 'pepe' && !this.textures.exists(spriteName)) {
           this.load.image(spriteName, `assets/characters/${spriteName}.png`);
         }
       });
@@ -38,20 +38,41 @@ class BattleScene extends Phaser.Scene {
       this.load.audio('1', 'assets/sounds/effects/1.wav');
       this.load.audio('fight', 'assets/sounds/effects/fight.mp3');
 
-      // Load special skill assets
+      // Load Doge special skill assets
       if (!this.textures.exists('skill1')) {
         this.load.image('skill1', 'assets/fighters/skills/doge/skill1.png');
       }
       if (!this.textures.exists('skill2')) {
         this.load.image('skill2', 'assets/fighters/skills/doge/skill2.png');
       }
-      // Load special skill sounds
+      // Load Doge special skill sounds
       if (!this.sound.get('skill1')) {
         this.load.audio('skill1', 'assets/sounds/effects/skills/doge/skill1.mp3');
       }
       if (!this.sound.get('skill2')) {
         this.load.audio('skill2', 'assets/sounds/effects/skills/doge/skill2.mp3');
       }
+
+      // Load Shiba special skill assets
+      if (!this.textures.exists('hell_background')) {
+        this.load.image('hell_background', 'assets/fighters/skills/shiba/hell_background.png');
+      }
+      // Load Shiba special skill sounds
+      if (!this.sound.get('shiba_slash')) {
+        this.load.audio('shiba_slash', 'assets/sounds/effects/skills/shiba/slash.wav');
+      }
+      if (!this.sound.get('inu_impact')) {
+        this.load.audio('inu_impact', 'assets/sounds/effects/skills/shiba/impact.wav');
+      }
+
+      // Preload Pepe assets dengan path yang sama seperti TestPepeScene
+      this.load.atlas('pepe_atlas', 
+        'assets/fighters/sprites/pepe/PEPE.png',
+        'assets/fighters/sprites/pepe/PEPE.json'
+      );
+      
+      // Tunggu sampai semua asset dimuat
+      this.load.start();
     } catch (error) {
       console.error('Error in preload:', error);
     }
@@ -146,6 +167,18 @@ class BattleScene extends Phaser.Scene {
       // Start countdown animation
       this.startCountdown();
 
+      // Set target untuk setiap fighter
+      this.fighter1.target = this.fighter2;
+      this.fighter2.target = this.fighter1;
+
+      // Initialize skills
+      if (this.fighter1 instanceof Pepe) {
+        this.fighter1.initializePepeSkills();
+      }
+      if (this.fighter2 instanceof Pepe) {
+        this.fighter2.initializePepeSkills();
+      }
+
     } catch (error) {
       console.error('Error in create:', error, error.stack);
     }
@@ -157,6 +190,10 @@ class BattleScene extends Phaser.Scene {
 
     if (stats.name === 'Doge') {
       return new Doge(this, x, y, stats, isPlayer1);
+    } else if (stats.name === 'Shiba') {
+      return new Shiba(this, x, y, stats, isPlayer1);
+    } else if (stats.name === 'Pepe') {
+      return new Pepe(this, x, y, stats, isPlayer1);
     } else {
       return new Fighter(this, x, y, stats, isPlayer1);
     }
@@ -289,39 +326,89 @@ class BattleScene extends Phaser.Scene {
 
   attackFighter(attacker, target, skillType = 0) {
     if (!this.isGameActive || !attacker || !target) return;
-
+  
     try {
-      if (skillType === 0) {
-        // Regular attack
-        const result = attacker.attack(target);
-      } else {
-        // Special skill attack
-        const skillName = skillType === 1 ? attacker.stats.specialSkill1Name : attacker.stats.specialSkill2Name;
-        const damage = skillType === 1 ? attacker.stats.baseAttack * 2 : attacker.stats.baseAttack * 3;
-        const actualDamage = target.takeDamage(damage);
+      attacker.target = target;
+      
+      // Check if target should defend (before attack happens)
+      if (target instanceof Pepe) {
+        const defendProbability = target.stats.defend || 5; // Use defend stat as probability
+        const shouldDefend = Math.random() * 10 < defendProbability;
+        
+        if (shouldDefend) {
+          target.defend(true);
+          // Reset defend state after a short delay
+          this.time.delayedCall(500, () => {
+            target.defend(false);
+          });
+        }
       }
-
+      
+      // Add kick probability check for Pepe
+      if (attacker instanceof Pepe && skillType === 0) {
+        const kickProbability = attacker.stats.kickProbability || 5;
+        const useKick = Math.random() * 10 < kickProbability;
+        
+        if (useKick) {
+          const success = attacker.kick(target);
+          if (success) {
+            return;
+          }
+        }
+      }
+      
+      // Continue with normal attack logic
+      if (skillType === 0) {
+        const success = attacker.attack(target);
+        if (success) {
+          attacker.gainMana(15);
+        }
+      } else {
+        const success = attacker.useSpecialSkill(skillType);
+        if (!success) {
+          console.log('Failed to execute skill - Check mana:', attacker.stats.mana);
+        }
+      }
+  
       if (target.stats.hp <= 0) {
-        this.endRound(attacker, true); // true indicates KO victory
+        this.endRound(attacker, true);
       }
     } catch (error) {
       console.error('Error in attackFighter:', error);
     }
   }
 
-  showRoundResult(winner, isKO = false) {
-    if (!winner) return;
-
+  showRoundResult(winner) {
     try {
-      const resultText = isKO ? 'ROUND WIN!' : 'ROUND WIN!';
-      this.roundResultText.setText(`${winner.stats.name}\n${resultText}`);
+      // Show round result text
+      const resultText = winner === this.fighter1 ? 'PLAYER 1 WINS!' : 'PLAYER 2 WINS!';
+      this.roundResultText.setText(resultText);
       this.roundResultText.setVisible(true);
-      this.roundResultText.setScale(1);
 
-      // Add log message for round result
-      winner.addLogMessage('Won the round!', '#ffd700');
+      // Play win animation for winner only
+      if (winner === this.fighter1) {
+        if (this.fighter1 instanceof Pepe) {
+          this.fighter1.sprite.play('pepe_win');
+          // Loop win animation
+          this.fighter1.sprite.on('animationcomplete', function(anim) {
+            if (anim.key === 'pepe_win') {
+              this.play('pepe_win');
+            }
+          });
+        }
+      } else {
+        if (this.fighter2 instanceof Pepe) {
+          this.fighter2.sprite.play('pepe_win');
+          // Loop win animation
+          this.fighter2.sprite.on('animationcomplete', function(anim) {
+            if (anim.key === 'pepe_win') {
+              this.play('pepe_win');
+            }
+          });
+        }
+      }
 
-      // Add scaling animation
+      // Add scaling animation for result text
       this.tweens.add({
         targets: this.roundResultText,
         scaleX: 1.2,
@@ -331,30 +418,29 @@ class BattleScene extends Phaser.Scene {
         repeat: 2,
         ease: 'Sine.easeInOut',
         onComplete: () => {
-          // Ensure text is hidden after animation
-          this.time.delayedCall(200, () => {
-            this.roundResultText.setVisible(false);
-            this.roundResultText.setScale(1);
-          });
-
           // Check for match victory
           if (winner.roundsWon >= 2) {
-            this.time.delayedCall(500, () => {
-              this.showVictoryAnimation(winner);
-            });
+            this.showVictoryAnimation(winner);
           }
         }
       });
     } catch (error) {
       console.error('Error in showRoundResult:', error);
-      // Fallback: ensure text is hidden even if animation fails
-      this.roundResultText.setVisible(false);
-      this.roundResultText.setScale(1);
     }
   }
 
   startNextRound() {
     try {
+      // Clean up any ongoing animations first
+      if (this.fighter1 instanceof Pepe) {
+        this.fighter1.sprite.removeAllListeners('animationcomplete');
+        this.fighter1.sprite.play('pepe_idle');
+      }
+      if (this.fighter2 instanceof Pepe) {
+        this.fighter2.sprite.removeAllListeners('animationcomplete');
+        this.fighter2.sprite.play('pepe_idle');
+      }
+
       // Reset fighters but keep their round wins
       this.fighter1.reset();
       this.fighter2.reset();
@@ -426,23 +512,42 @@ class BattleScene extends Phaser.Scene {
   }
 
   showVictoryAnimation(winner) {
-    if (!winner) return;
-
     try {
-      this.isTransitioning = true;
       this.victoryText.setText(`${winner.stats.name}\nWINS THE MATCH!`);
       this.victoryText.setVisible(true);
-      this.victoryText.setScale(1);
 
-      // Add log message for match victory
-      winner.addLogMessage('Won the match!', '#ffd700');
-
-      // Hide round result text if it's still visible
-      if (this.roundResultText.visible) {
-        this.roundResultText.setVisible(false);
+      // Play final victory/death animations
+      if (winner === this.fighter1) {
+        if (this.fighter1 instanceof Pepe) {
+          this.fighter1.sprite.play('pepe_win');
+          // Loop win animation indefinitely for match victory
+          this.fighter1.sprite.on('animationcomplete', function(anim) {
+            if (anim.key === 'pepe_win') {
+              this.play('pepe_win');
+            }
+          });
+        }
+        if (this.fighter2 instanceof Pepe) {
+          this.fighter2.sprite.play('pepe_death');
+          // Don't reset to idle - stay in death animation
+        }
+      } else {
+        if (this.fighter2 instanceof Pepe) {
+          this.fighter2.sprite.play('pepe_win');
+          // Loop win animation indefinitely for match victory
+          this.fighter2.sprite.on('animationcomplete', function(anim) {
+            if (anim.key === 'pepe_win') {
+              this.play('pepe_win');
+            }
+          });
+        }
+        if (this.fighter1 instanceof Pepe) {
+          this.fighter1.sprite.play('pepe_death');
+          // Don't reset to idle - stay in death animation
+        }
       }
 
-      // Add scaling animation
+      // Victory text animation
       this.tweens.add({
         targets: this.victoryText,
         scaleX: 1.2,
@@ -452,14 +557,8 @@ class BattleScene extends Phaser.Scene {
         repeat: 4,
         ease: 'Sine.easeInOut',
         onComplete: () => {
-          this.victoryText.setVisible(false);
-          this.victoryText.setScale(1);
-
-          // Ensure we transition to the next match
-          this.time.delayedCall(3000, () => {
-            if (this.scene) {
-              this.startNewMatch();
-            }
+          this.time.delayedCall(2000, () => {
+            this.startNewMatch();
           });
         }
       });
@@ -479,7 +578,7 @@ class BattleScene extends Phaser.Scene {
       winner.winRound();
 
       // Show round result animation
-      this.showRoundResult(winner, isKO);
+      this.showRoundResult(winner);
 
       // If no winner yet, start next round after delay
       if (winner.roundsWon < 2) {

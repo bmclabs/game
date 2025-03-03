@@ -45,7 +45,7 @@ class ToTheMoonSkill {
       };
 
       // Add healing effect
-      this.fighter.stats.hp = Math.min(this.fighter.stats.maxHp, this.fighter.stats.hp + 10);
+      this.fighter.stats.hp = Math.min(this.fighter.stats.maxHp, this.fighter.stats.hp + 20);
       this.fighter.updateBars();
       this.fighter.addLogMessage('Moon power heals 10 HP!', '#00ff00');
 
