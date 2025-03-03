@@ -2,6 +2,7 @@ class Fighter {
   constructor(scene, x, y, stats, isPlayer1) {
     this.scene = scene;
     this.isPlayer1 = isPlayer1;
+    this.fighterName = stats.name.toLowerCase();
 
     // Create fighter sprite
     try {
@@ -50,9 +51,12 @@ class Fighter {
       this.hitbox.setVisible(false);
     }
 
-    // Set initial facing direction
-    this.updateFacing(isPlayer1 ? 1 : -1);
-
+    // Set initial facing direction based on player number
+    // Only call setFlipX if it's a sprite (not a rectangle)
+    if (this.sprite.setFlipX) {
+      this.sprite.setFlipX(isPlayer1 ? false : true);
+    }
+    
     this.roundsWon = 0;
     this.stats = {
       hp: stats.hp || 100,
@@ -242,10 +246,19 @@ class Fighter {
   }
 
   winRound() {
-    if (this.roundsWon < 2) {
-      this.roundIndicators[this.roundsWon].setFillStyle(0x00ff00);
-      this.roundsWon++;
+    // Increment rounds won counter by 1
+    this.roundsWon++;
+    console.log(`${this.stats.name} won a round. Total rounds won: ${this.roundsWon}`);
+    
+    // Update round indicators (up to 2)
+    for (let i = 0; i < Math.min(this.roundsWon, 2); i++) {
+      if (this.roundIndicators && this.roundIndicators[i]) {
+        this.roundIndicators[i].setFillStyle(0x00ff00);
+      }
     }
+    
+    // Add log message
+    this.addLogMessage(`Won round! Points: ${this.roundsWon}/2`, '#00ff00');
   }
 
   resetRounds() {
@@ -361,6 +374,11 @@ class Fighter {
   }
 
   useSpecialSkill(skillNumber) {
+    // Make sure we're facing the target before using a special skill if we have setFlipX method
+    if (this.target && this.target.sprite && this.sprite.setFlipX) {
+      this.updateFacing(this.target);
+    }
+    
     // Base class implementation - can be overridden by child classes
     const cost = skillNumber === 1 ? this.stats.specialSkill1Cost : this.stats.specialSkill2Cost;
     if (this.stats.mana < cost) {
@@ -379,6 +397,11 @@ class Fighter {
   }
 
   attack(target) {
+    // Make sure we're facing the target before attacking if we have setFlipX method
+    if (target && target.sprite && this.sprite.setFlipX) {
+      this.updateFacing(target);
+    }
+    
     const isCritical = Math.random() * 100 < this.stats.critical;
     const damage = this.stats.baseAttack * (isCritical ? 2 : 1);
     const actualDamage = target.takeDamage(damage);
@@ -411,128 +434,267 @@ class Fighter {
       this.sprite.preFX.clear();
       this.sprite.preFX.addGlow(this.stats.color || 0xff0000, 0.5, 0, false, 0.1, 16);
     }
+    
+    // Reset animation to idle if it's a sprite with animations
+    if (this.sprite.anims && this.fighterName) {
+      this.sprite.play(`${this.fighterName}_idle`);
+    }
+    
+    // Reset flags
+    this.isAttacking = false;
+    this.isDefending = false;
+    this.isJumping = false;
+    this.isUsingSkill = false;
+    this.moveDirection = 0;
+    this.isMoving = false;
+    
+    // Make sure we're facing the opponent if one exists and we have setFlipX method
+    if (this.target && this.target.sprite && this.sprite.setFlipX) {
+      this.updateFacing(this.target);
+    }
 
     this.logMessages = [];
     this.updateLogDisplay();
   }
 
-  updateFacing(direction) {
-    if (this.sprite.texture.key !== '__DEFAULT' && this.sprite.setFlipX) {
-      this.sprite.setFlipX(direction < 0);
+  updateFacing(opponent) {
+    // Only proceed if the sprite has the setFlipX method (sprites have it, rectangles don't)
+    if (!this.sprite.setFlipX) {
+      return;
+    }
+    
+    // If opponent is a direction (number), use that
+    if (typeof opponent === 'number') {
+      const direction = opponent;
+      if (this.isPlayer1) {
+        this.sprite.setFlipX(direction < 0);
+      } else {
+        // For player 2, flip when facing right (positive direction)
+        this.sprite.setFlipX(direction > 0);
+      }
+      return;
+    }
+    
+    // If opponent is an object with sprite, face that opponent
+    if (opponent && opponent.sprite) {
+      // Always determine facing based on relative position, regardless of player number
+      const shouldFaceRight = this.sprite.x < opponent.sprite.x;
+      
+      // Player 1 should NOT be flipped when facing right
+      // Player 2 should be flipped when facing right
+      if (this.isPlayer1) {
+        this.sprite.setFlipX(!shouldFaceRight);
+      } else {
+        // FIXED: Player 2 should be flipped when facing LEFT (not right)
+        // This means we flip when shouldFaceRight is true
+        this.sprite.setFlipX(!shouldFaceRight);
+      }
     }
   }
 
   update(time, opponent) {
-    if (!this.scene || !this.scene.isGameActive) return;
-
     try {
-      // Update jumping physics
-      if (this.isJumping) {
-        this.sprite.y -= this.jumpVelocity;
-        this.jumpVelocity -= this.gravity;
-
-        // Update hitbox position
-        this.hitbox.y = this.sprite.y;
-
+      // ALWAYS update facing first, regardless of state, if we have setFlipX method
+      if (opponent && opponent.sprite && this.sprite.setFlipX) {
+        this.updateFacing(opponent);
+      }
+      
+      // Update position if jumping
+      if (this.isJumping && this.jumpVelocity) {
+        // Apply gravity
+        this.jumpVelocity += this.gravity;
+        
+        // Update position
+        this.sprite.y += this.jumpVelocity;
+        
         // Check if landed
         if (this.sprite.y >= this.groundY) {
           this.sprite.y = this.groundY;
-          this.hitbox.y = this.groundY;
           this.isJumping = false;
           this.jumpVelocity = 0;
+          
+          // Return to idle animation if it's a sprite with animations
+          if (this.sprite.anims && this.fighterName) {
+            this.sprite.play(`${this.fighterName}_idle`);
+          }
+          
+          // Update facing again after landing if we have setFlipX method
+          if (opponent && opponent.sprite && this.sprite.setFlipX) {
+            this.updateFacing(opponent);
+          }
         }
       }
-
+      
+      // Update hitbox position
+      if (this.hitbox) {
+        this.hitbox.x = this.sprite.x;
+        this.hitbox.y = this.sprite.y;
+      }
+      
+      // Update log display
+      this.updateLogDisplay();
+      
+      // Update AI if not player controlled
+      if (!this.isPlayerControlled && opponent) {
+        this.updateAI(time, opponent);
+      }
+      
+      // Update last position
+      this.lastX = this.sprite.x;
+      this.lastY = this.sprite.y;
+    } catch (error) {
+      console.error(`Error in Fighter update for ${this.stats?.name}:`, error);
+    }
+  }
+  
+  updateAI(time, opponent) {
+    try {
+      // Skip if already attacking or defending
+      if (this.isAttacking || this.isDefending || this.isUsingSkill) {
+        return;
+      }
+      
+      // Calculate distance to opponent
       const distance = Math.abs(this.sprite.x - opponent.sprite.x);
-
-      // Update facing direction based on opponent position
-      this.updateFacing(this.sprite.x < opponent.sprite.x ? 1 : -1);
-
-      // Check if fighters are too close
-      if (distance < this.minDistance) {
-        // Random chance to swap positions or jump over
-        if (this.canSwapPosition && time - this.lastSwapTime > this.swapCooldown && Math.random() < 0.3) {
-          this.swapPositionWithOpponent(opponent);
-        } else if (!this.isJumping && Math.random() < 0.4) {
-          this.jumpOverOpponent(opponent);
-        }
-      }
-
-      // Random jumping during movement
-      if (!this.isJumping && Math.random() < 0.02) {
-        if (Math.random() < 0.3) {
-          this.jumpOverOpponent(opponent);
-        } else {
-          this.jump();
-        }
-      }
-
-      // Check if fighter is stuck
-      if (Math.abs(this.sprite.x - this.targetPosition) < this.moveSpeed) {
-        if (!this.isStuck) {
-          this.isStuck = true;
-          this.stuckTime = time;
-        } else if (time - this.stuckTime > this.maxStuckTime) {
-          // Force movement if stuck too long
-          this.moveAway(opponent);
-          this.isStuck = false;
-        }
-      } else {
-        this.isStuck = false;
-      }
-
-      // Update fighter position based on movement
-      if (Math.abs(this.sprite.x - this.targetPosition) > this.moveSpeed) {
-        const direction = this.sprite.x < this.targetPosition ? 1 : -1;
-        const newX = this.sprite.x + direction * this.moveSpeed;
-
-        // Check boundaries and prevent getting stuck at edges
-        if (newX >= 100 && newX <= 700) {
-          // Check if moving would cause overlap
-          const newDistance = Math.abs(newX - opponent.sprite.x);
-          if (newDistance >= this.minDistance) {
-            this.sprite.x = newX;
-          } else {
-            this.moveAway(opponent);
-          }
-        } else {
-          this.moveAway(opponent);
-        }
-      }
-
-      // Check if it's time for next action
+      
+      // Decide what to do based on time
       if (time > this.nextActionTime) {
-        // Decide next action based on distance and state
-        if (distance <= this.attackRange) {
-          if (this.consecutiveAttacks < this.maxConsecutiveAttacks) {
-            this.performAttack(opponent);
-            this.consecutiveAttacks++;
-          } else {
-            this.moveAway(opponent);
-            this.consecutiveAttacks = 0;
-          }
+        // Reset action time with some randomness to make AI less predictable
+        this.nextActionTime = time + this.actionDelay + Math.random() * 1000;
+        
+        // Get fighter's personality traits from stats or use defaults
+        const aggressiveness = this.stats.aggressiveness || 50; // 0-100 scale
+        const defensiveness = this.stats.defensiveness || 50; // 0-100 scale
+        const jumpiness = this.stats.jumpiness || 30; // 0-100 scale
+        
+        // Adjust strategy based on health and personality
+        const healthRatio = this.stats.hp / this.stats.maxHp;
+        const opponentHealthRatio = opponent.stats.hp / opponent.stats.maxHp;
+        
+        // Calculate action probabilities based on health and personality
+        let attackProb = aggressiveness * 0.8;
+        let defendProb = defensiveness * 0.8;
+        let jumpProb = jumpiness * 0.8;
+        let moveProb = 50;
+        
+        // Adjust probabilities based on health
+        if (healthRatio < 0.3) {
+          // Low health - more defensive
+          defendProb += 30;
+          attackProb -= 20;
+          jumpProb += 10;
+        } else if (healthRatio > 0.7 && opponentHealthRatio < 0.5) {
+          // High health vs low health opponent - more aggressive
+          attackProb += 20;
+          defendProb -= 10;
+        }
+        
+        // Adjust probabilities based on distance
+        const inAttackRange = distance < (this.attackRange || 150);
+        if (inAttackRange) {
+          attackProb += 20;
+          moveProb -= 20;
         } else {
-          // Only move if not on cooldown
-          if (time - this.lastMoveTime > this.moveCooldown) {
-            this.approachOpponent(opponent);
-            this.lastMoveTime = time;
-            this.consecutiveAttacks = 0;
+          moveProb += 20;
+          attackProb -= 10;
+        }
+        
+        // Normalize probabilities
+        const totalProb = attackProb + defendProb + jumpProb + moveProb;
+        attackProb = (attackProb / totalProb) * 100;
+        defendProb = (defendProb / totalProb) * 100;
+        jumpProb = (jumpProb / totalProb) * 100;
+        moveProb = (moveProb / totalProb) * 100;
+        
+        // Choose action based on probabilities
+        const action = Math.random() * 100;
+        let currentThreshold = 0;
+        
+        // Attack action
+        if (action < (currentThreshold + attackProb)) {
+          if (inAttackRange) {
+            // Choose attack type
+            const attackType = Math.random() * 100;
+            if (attackType < 15 && this.stats.mana >= this.stats.specialSkill2Cost) {
+              // Use special skill 2
+              console.log(`${this.stats.name} using special skill 2`);
+              this.useSpecialSkill(2);
+            } else if (attackType < 40 && this.stats.mana >= this.stats.specialSkill1Cost) {
+              // Use special skill 1
+              console.log(`${this.stats.name} using special skill 1`);
+              this.useSpecialSkill(1);
+            } else if (attackType < 60) {
+              // Kick
+              console.log(`${this.stats.name} kicking`);
+              this.kick(opponent);
+            } else {
+              // Normal attack
+              console.log(`${this.stats.name} attacking`);
+              this.attack(opponent);
+            }
+          } else {
+            // Move toward opponent if not in range
+            const direction = this.sprite.x < opponent.sprite.x ? 1 : -1;
+            console.log(`${this.stats.name} moving toward opponent`);
+            this.move(direction);
+            
+            // Stop moving after a random time
+            this.scene.time.delayedCall(300 + Math.random() * 700, () => {
+              this.stopMoving();
+            });
           }
         }
-
-        // Add some randomness to next action time
-        this.nextActionTime = time + this.actionDelay + Math.random() * 100;
-      }
-
-      // Update hitbox position with sprite movement
-      this.hitbox.x = this.sprite.x;
-
-      // Update current special animation if exists
-      if (this.currentSpecialAnimation) {
-        this.currentSpecialAnimation.update();
+        // Defend action
+        else if (action < (currentThreshold += defendProb)) {
+          console.log(`${this.stats.name} defending`);
+          this.defend(true);
+          
+          // Stop defending after a random time
+          this.scene.time.delayedCall(500 + Math.random() * 1000, () => {
+            this.defend(false);
+          });
+        }
+        // Jump action
+        else if (action < (currentThreshold += jumpProb)) {
+          // Decide jump type
+          const jumpType = Math.random() * 100;
+          if (jumpType < 30 && distance < 200) {
+            // Jump over opponent
+            console.log(`${this.stats.name} jumping over opponent`);
+            this.jumpOverOpponent(opponent);
+          } else {
+            // Regular jump
+            console.log(`${this.stats.name} jumping`);
+            this.jump();
+          }
+        }
+        // Move action
+        else {
+          // Decide movement type
+          const moveType = Math.random() * 100;
+          if (moveType < 30 && healthRatio < 0.5) {
+            // Move away when low health
+            console.log(`${this.stats.name} moving away`);
+            this.moveAway(opponent);
+          } else if (moveType < 70) {
+            // Move toward opponent
+            console.log(`${this.stats.name} moving toward opponent`);
+            this.approachOpponent(opponent);
+          } else {
+            // Random movement
+            const direction = Math.random() < 0.5 ? 1 : -1;
+            console.log(`${this.stats.name} moving randomly`);
+            this.move(direction);
+          }
+          
+          // Stop moving after a random time
+          this.scene.time.delayedCall(300 + Math.random() * 1000, () => {
+            this.stopMoving();
+          });
+        }
       }
     } catch (error) {
-      console.error('Error in Fighter update:', error);
+      console.error(`Error in updateAI for ${this.stats?.name}:`, error);
     }
   }
 
@@ -596,24 +758,66 @@ class Fighter {
   }
 
   jumpOverOpponent(opponent) {
-    if (!this.isJumping) {
-      this.isJumping = true;
-      this.jumpVelocity = this.jumpSpeed * 1.2; // Higher jump for crossing over
-
-      // Play jump sound with reduced volume
-      this.scene.sound.play('jump', { volume: 0.1 });
-
-      // Calculate landing position on other side of opponent
-      const jumpDistance = this.sprite.x < opponent.sprite.x ? 200 : -200;
-      const newX = Math.max(100, Math.min(700, opponent.sprite.x + jumpDistance));
-
-      this.scene.tweens.add({
-        targets: [this.sprite, this.hitbox],
-        x: newX,
-        duration: 600,
-        ease: 'Power1'
-      });
+    if (this.isJumping || this.isAttacking || this.isDefending || this.isUsingSkill) return false;
+    
+    this.isJumping = true;
+    
+    // Calculate jump destination (other side of opponent)
+    const currentX = this.sprite.x;
+    const opponentX = opponent.sprite.x;
+    const jumpDistance = 100; // Distance beyond opponent
+    
+    // Determine jump direction
+    const jumpDirection = currentX < opponentX ? 1 : -1;
+    const destinationX = opponentX + (jumpDirection * jumpDistance);
+    
+    // Play jump animation if it's a sprite with animations
+    if (this.sprite.anims && this.sprite.play && this.fighterName) {
+      const jumpAnim = this.sprite.anims.animationManager.get(`${this.fighterName}_jump`);
+      if (jumpAnim) {
+        this.sprite.play(`${this.fighterName}_jump`);
+      }
     }
+    
+    // Create jump tween
+    this.scene.tweens.add({
+      targets: this.sprite,
+      x: destinationX,
+      y: this.sprite.y - 150, // Jump height
+      duration: 800,
+      ease: 'Quad.out',
+      yoyo: false,
+      onComplete: () => {
+        // Land at destination
+        this.scene.tweens.add({
+          targets: this.sprite,
+          y: this.groundY,
+          duration: 300,
+          ease: 'Bounce.out',
+          onComplete: () => {
+            this.isJumping = false;
+            
+            // IMPORTANT: Update facing direction to face opponent after landing if we have setFlipX method
+            if (opponent && opponent.sprite && this.sprite.setFlipX) {
+              this.updateFacing(opponent);
+            }
+            
+            // Return to idle animation if it's a sprite with animations
+            if (this.sprite.anims && this.sprite.play && this.fighterName) {
+              this.sprite.play(`${this.fighterName}_idle`);
+            }
+          }
+        });
+      },
+      // Update facing during the jump as well if we have setFlipX method
+      onUpdate: () => {
+        if (opponent && opponent.sprite && this.sprite.setFlipX) {
+          this.updateFacing(opponent);
+        }
+      }
+    });
+    
+    return true;
   }
 
   swapPositionWithOpponent(opponent) {
@@ -832,6 +1036,72 @@ class Fighter {
         this.sprite.play(animKey);
       }
     }
+  }
+
+  move(direction) {
+    // Don't move if attacking, defending, or using a skill
+    if (this.isAttacking || this.isDefending || this.isUsingSkill) return;
+    
+    // Set movement direction
+    this.moveDirection = direction;
+    this.isMoving = true;
+    
+    // Update facing based on movement direction if we have setFlipX method
+    if (this.sprite.setFlipX) {
+      if (this.target && this.target.sprite) {
+        // Always face the opponent while moving
+        this.updateFacing(this.target);
+      } else {
+        // If no opponent, face the direction of movement
+        this.updateFacing(direction);
+      }
+    }
+    
+    // Play walk animation if available
+    if (this.sprite.anims && this.fighterName) {
+      const walkAnim = `${this.fighterName}_walk`;
+      if (this.scene.anims.exists(walkAnim)) {
+        this.sprite.play(walkAnim, true);
+      }
+    }
+  }
+  
+  stopMoving() {
+    this.isMoving = false;
+    this.moveDirection = 0;
+    
+    // Return to idle animation if not in another state and if it's a sprite with animations
+    if (!this.isAttacking && !this.isDefending && !this.isJumping && !this.isUsingSkill && 
+        this.sprite.anims && this.fighterName) {
+      const idleAnim = `${this.fighterName}_idle`;
+      if (this.scene.anims.exists(idleAnim)) {
+        this.sprite.play(idleAnim, true);
+      }
+    }
+    
+    // Make sure we're still facing the opponent if we have setFlipX method
+    if (this.target && this.target.sprite && this.sprite.setFlipX) {
+      this.updateFacing(this.target);
+    }
+  }
+
+  kick(target) {
+    // Make sure we're facing the target before kicking if we have setFlipX method
+    if (target && target.sprite && this.sprite.setFlipX) {
+      this.updateFacing(target);
+    }
+    
+    // Calculate kick damage (1.5x base attack)
+    const kickDamage = Math.round(this.stats.baseAttack * 1.5);
+    const actualDamage = target.takeDamage(kickDamage);
+    
+    // Add log message for kick
+    this.addLogMessage(`Kick for ${actualDamage}!`, '#ffaa00');
+    
+    // Gain mana from kick
+    this.gainMana(actualDamage * 0.8);
+    
+    return { damage: actualDamage };
   }
 }
 

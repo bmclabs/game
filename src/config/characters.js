@@ -1,35 +1,9 @@
 const CHARACTERS = [
   {
-    name: 'Doge',
-    hp: 300,
-    maxMana: 120,
-    baseAttack: 12,
-    critical: 15,
-    defend: 10,
-    specialSkill1Cost: 35,
-    specialSkill2Cost: 70,
-    specialSkill1Name: 'Much Wow',
-    specialSkill2Name: 'To The Moon',
-    color: 0xFFD700,
-    // Balanced fighter with good survivability and decent special skills
-  },
-  {
-    name: 'Shiba',
-    hp: 280,
-    maxMana: 140,
-    baseAttack: 14,
-    critical: 18,
-    defend: 8,
-    specialSkill1Cost: 40,
-    specialSkill2Cost: 75,
-    specialSkill1Name: 'Shiba Slash',
-    specialSkill2Name: 'Inu Impact',
-    color: 0xA0522D,
-    // Aggressive fighter with high crit chance
-  },
-  {
     name: 'Pepe',
     hp: 260,
+    maxHp: 260,
+    mana: 0,
     maxMana: 160,
     baseAttack: 16,
     critical: 20,
@@ -39,77 +13,48 @@ const CHARACTERS = [
     specialSkill2Cost: 80,
     specialSkill1Name: 'Poison Strike',
     specialSkill2Name: 'Pepe Rage',
+    specialSkill1Damage: 30,
+    specialSkill2Damage: 60,
     color: 0x00ff00,
-    // High risk, high reward fighter
-  },
-  {
-    name: 'Mochi',
-    hp: 320,
-    maxMana: 100,
-    baseAttack: 10,
-    critical: 10,
-    defend: 12,
-    specialSkill1Cost: 30,
-    specialSkill2Cost: 65,
-    specialSkill1Name: 'Safe Shield',
-    specialSkill2Name: 'Lunar Launch',
-    color: 0x4169E1,
-    // Tank with high HP and defense
-  },
-  {
-    name: 'Floki',
-    hp: 290,
-    maxMana: 130,
-    baseAttack: 13,
-    critical: 16,
-    defend: 9,
-    specialSkill1Cost: 38,
-    specialSkill2Cost: 72,
-    specialSkill1Name: 'Viking Rage',
-    specialSkill2Name: 'Norse Storm',
-    color: 0xFF6B6B,
-    // Well-rounded fighter with balanced stats
+    description: 'High risk, high reward fighter with powerful special attacks',
+    aiStyle: 'aggressive', // AI behavior style
+    attackRange: 120, // Range at which fighter can attack
+    actionDelay: 800, // Base delay between AI actions
+    // Personality traits (0-100 scale)
+    aggressiveness: 70,
+    defensiveness: 30,
+    jumpiness: 50,
+    // Movement preferences
+    preferredDistance: 150, // Preferred distance from opponent
+    retreatHealthThreshold: 0.3, // Health ratio at which fighter prefers to retreat
   },
   {
     name: 'Trump',
     hp: 295,
+    maxHp: 295,
+    mana: 0,
     maxMana: 110,
     baseAttack: 15,
     critical: 12,
     defend: 11,
+    kickProbability: 10,
     specialSkill1Cost: 35,
     specialSkill2Cost: 68,
     specialSkill1Name: 'Trump Rush',
     specialSkill2Name: 'Pack Hunt',
+    specialSkill1Damage: 25,
+    specialSkill2Damage: 50,
     color: 0xFFA500,
-    // Offensive fighter with good defense
-  },
-  {
-    name: 'Bonk',
-    hp: 250,
-    maxMana: 150,
-    baseAttack: 18,
-    critical: 22,
-    defend: 5,
-    specialSkill1Cost: 42,
-    specialSkill2Cost: 78,
-    specialSkill1Name: 'Bonk Smash',
-    specialSkill2Name: 'Cheems Power',
-    color: 0xFF4500,
-    // Glass cannon with highest damage
-  },
-  {
-    name: 'Kishu',
-    hp: 285,
-    maxMana: 135,
-    baseAttack: 13,
-    critical: 17,
-    defend: 8,
-    specialSkill1Cost: 38,
-    specialSkill2Cost: 73,
-    specialSkill1Name: 'Kishu Blade',
-    specialSkill2Name: 'Token Strike',
-    color: 0x9370DB,
-    // Balanced fighter with good mana pool
+    description: 'Balanced fighter with good defense and offense',
+    aiStyle: 'balanced', // AI behavior style
+    attackRange: 100, // Range at which fighter can attack
+    actionDelay: 1000, // Base delay between AI actions
+    // Personality traits (0-100 scale)
+    aggressiveness: 50,
+    defensiveness: 60,
+    jumpiness: 30,
+    // Movement preferences
+    preferredDistance: 120, // Preferred distance from opponent
+    retreatHealthThreshold: 0.4, // Health ratio at which fighter prefers to retreat
   }
 ]; 
