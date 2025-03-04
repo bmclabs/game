@@ -289,7 +289,7 @@ class GenericFighter extends Fighter {
         console.log(`${this.stats.name} missed ${target?.stats?.name || 'target'} - not in range`);
       }
       
-      // Gain mana
+      // Gain mana (reduced from 20 to 10)
       this.gainMana(10);
       
       // Play idle animation
@@ -325,7 +325,7 @@ class GenericFighter extends Fighter {
         console.log(`${this.stats.name} missed kick on ${target?.stats?.name || 'target'} - not in range`);
       }
       
-      // Gain mana
+      // Gain mana (reduced from 30 to 15)
       this.gainMana(15);
       
       // Play idle animation
@@ -404,6 +404,9 @@ class GenericFighter extends Fighter {
   }
   
   takeDamage(amount) {
+    // If already dead, don't take more damage
+    if (this.isDead) return 0;
+    
     // Check if defending
     if (this.isDefending) {
       // Reduce damage when defending
@@ -413,14 +416,25 @@ class GenericFighter extends Fighter {
     // Apply damage
     this.stats.hp = Math.max(0, this.stats.hp - amount);
     
+    // Gain mana when taking damage (reduced from 1.2 to 0.5)
+    const manaGained = amount * 0.5;
+    this._isGainingManaFromDamage = true;
+    this.gainMana(manaGained);
+    this._isGainingManaFromDamage = false;
+    
     // Update health bar
     this.updateBars();
     
     // Add log message
     this.addLogMessage(`Took ${amount} damage!`, '#ff0000');
+    if (manaGained > 0) {
+      this.addLogMessage(`+${Math.floor(manaGained)} mana from damage`, '#6666ff');
+    }
     
     // Check if dead
     if (this.stats.hp <= 0) {
+      this.isDead = true;
+      
       // Play death animation
       const deathAnimKey = `${this.fighterName}_death`;
       if (this.scene.anims.exists(deathAnimKey)) {
@@ -558,8 +572,19 @@ class GenericFighter extends Fighter {
   }
   
   gainMana(amount) {
-    // Add mana
-    this.stats.mana = Math.min(this.stats.maxMana, this.stats.mana + amount);
+    const oldMana = this.stats.mana;
+    // Reduce mana gain multiplier from 3 to 1.5
+    const increasedAmount = amount * 1.5;
+    this.stats.mana = Math.min(this.stats.maxMana, this.stats.mana + increasedAmount);
+    const gainedMana = this.stats.mana - oldMana;
+    
+    // Add log message for mana gain (only if not from damage, to avoid duplicate messages)
+    if (gainedMana > 0 && amount > 0) {
+      // Check if this is not from takeDamage (which already logs mana gain)
+      if (!this._isGainingManaFromDamage) {
+        this.addLogMessage(`Gained ${Math.floor(gainedMana)} mana`, '#6666ff');
+      }
+    }
     
     // Update mana bar
     this.updateBars();

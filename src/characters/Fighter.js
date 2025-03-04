@@ -215,6 +215,12 @@ class Fighter {
 
     // Add moon power flag
     this.hasMoonPower = false;
+
+    // Add death flag
+    this.isDead = false;
+    
+    // Add flag for mana gain from damage
+    this._isGainingManaFromDamage = false;
   }
 
   showUI() {
@@ -307,9 +313,18 @@ class Fighter {
   }
 
   takeDamage(amount) {
+    // If already dead, don't take more damage
+    if (this.isDead) return 0;
+    
     const damage = Math.max(0, amount - this.stats.defend);
     this.stats.hp = Math.max(0, this.stats.hp - damage);
-    this.gainMana(damage * 0.5);
+    
+    // Gain mana from damage (reduced from 1.2 to 0.5)
+    const manaGained = damage * 0.5;
+    this._isGainingManaFromDamage = true;
+    this.gainMana(manaGained);
+    this._isGainingManaFromDamage = false;
+    
     this.updateBars();
 
     // Track damage received for skill probability
@@ -355,19 +370,39 @@ class Fighter {
       });
     }
 
+    // Check if fighter is dead
+    if (this.stats.hp <= 0) {
+      this.isDead = true;
+      this.addLogMessage('KO!', '#ff0000');
+      
+      // Play death animation if available
+      if (this.sprite.anims && this.fighterName) {
+        const deathAnimKey = `${this.fighterName}_death`;
+        if (this.scene.anims.exists(deathAnimKey)) {
+          this.sprite.play(deathAnimKey, true);
+        }
+      }
+    }
+
     this.addLogMessage(`Took ${damage} damage!`, '#ff6666');
+    if (manaGained > 0) {
+      this.addLogMessage(`+${Math.floor(manaGained)} mana from damage`, '#6666ff');
+    }
     return damage;
   }
 
   gainMana(amount) {
     const oldMana = this.stats.mana;
-    // Increase mana gain by 100% to ensure enough mana for skill 2
-    const adjustedAmount = amount * 2;
+    // Reduce mana gain multiplier from 3 to 1.5
+    const adjustedAmount = amount * 1.5;
     this.stats.mana = Math.min(this.stats.maxMana, this.stats.mana + adjustedAmount);
     const gainedMana = this.stats.mana - oldMana;
 
     if (gainedMana > 0) {
-      this.addLogMessage(`Gained ${Math.floor(gainedMana)} mana`, '#6666ff');
+      // Only log if not from damage (to avoid duplicate messages)
+      if (!this._isGainingManaFromDamage) {
+        this.addLogMessage(`Gained ${Math.floor(gainedMana)} mana`, '#6666ff');
+      }
     }
 
     this.updateBars();
@@ -419,8 +454,8 @@ class Fighter {
       isCritical ? '#ff0000' : '#ffffff'
     );
 
-    // Increase mana gain from attacks
-    this.gainMana(actualDamage * 0.6);
+    // Reduce mana gain from attacks (from 1.0 to 0.5)
+    this.gainMana(actualDamage * 0.5);
     return { damage: actualDamage, isCritical };
   }
 
@@ -428,6 +463,9 @@ class Fighter {
     this.stats.hp = this.stats.maxHp;
     this.stats.mana = 0;
     this.updateBars();
+    
+    // Reset death flag
+    this.isDead = false;
 
     // Reset sprite effects if using custom sprite
     if (this.sprite.texture.key !== '__DEFAULT' && this.sprite.preFX) {
@@ -1192,7 +1230,7 @@ class Fighter {
     this.addLogMessage(`Kick for ${actualDamage}!`, '#ffaa00');
     
     // Gain mana from kick
-    this.gainMana(actualDamage * 0.8);
+    this.gainMana(actualDamage * 1.0);
     
     return { damage: actualDamage };
   }

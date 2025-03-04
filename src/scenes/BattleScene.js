@@ -339,22 +339,9 @@ class BattleScene extends Phaser.Scene {
       
       // Update fighters
       if (this.fighter1 && this.fighter2) {
-        // Check for KO
-        if (this.fighter1.stats.hp <= 0) {
-          this.endRound(this.fighter2, true);
-          return;
-        } else if (this.fighter2.stats.hp <= 0) {
-          this.endRound(this.fighter1, true);
-          return;
-        }
-        
-        // Always ensure fighters are facing each other
-        // Only if they have sprites with setFlipX method
-        if (this.fighter1.sprite && this.fighter2.sprite && 
-            this.fighter1.sprite.setFlipX && this.fighter2.sprite.setFlipX) {
-          this.fighter1.updateFacing(this.fighter2);
-          this.fighter2.updateFacing(this.fighter1);
-        }
+        // Track previous HP for determining who took damage last
+        const prevHP1 = this.fighter1.stats.hp;
+        const prevHP2 = this.fighter2.stats.hp;
         
         // Update fighter positions and AI
         if (this.fighter1.sprite) {
@@ -373,6 +360,56 @@ class BattleScene extends Phaser.Scene {
           if (time % 60 === 0) {
             this.fighter2.gainMana(1);
           }
+        }
+        
+        // Check for KO with improved handling for simultaneous KO
+        if (this.fighter1.stats.hp <= 0 && this.fighter2.stats.hp <= 0) {
+          console.log('Both fighters KO at the same time! Determining winner...');
+          
+          // Determine who took damage last by comparing previous HP
+          const fighter1Damage = prevHP1 - this.fighter1.stats.hp;
+          const fighter2Damage = prevHP2 - this.fighter2.stats.hp;
+          
+          // If one fighter took more damage this frame, the other wins
+          if (fighter1Damage > fighter2Damage) {
+            console.log(`${this.fighter2.stats.name} wins - took less damage in final hit`);
+            this.endRound(this.fighter2, true);
+          } else if (fighter2Damage > fighter1Damage) {
+            console.log(`${this.fighter1.stats.name} wins - took less damage in final hit`);
+            this.endRound(this.fighter1, true);
+          } else {
+            // If damage is equal, determine winner based on previous health percentage
+            const fighter1PrevHealthPercent = prevHP1 / this.fighter1.stats.maxHp;
+            const fighter2PrevHealthPercent = prevHP2 / this.fighter2.stats.maxHp;
+            
+            if (fighter1PrevHealthPercent > fighter2PrevHealthPercent) {
+              console.log(`${this.fighter1.stats.name} wins - had higher health percentage before final hit`);
+              this.endRound(this.fighter1, true);
+            } else if (fighter2PrevHealthPercent > fighter1PrevHealthPercent) {
+              console.log(`${this.fighter2.stats.name} wins - had higher health percentage before final hit`);
+              this.endRound(this.fighter2, true);
+            } else {
+              // If everything is equal, choose randomly
+              const randomWinner = Math.random() < 0.5 ? this.fighter1 : this.fighter2;
+              console.log(`Completely equal KO! Random winner: ${randomWinner.stats.name}`);
+              this.endRound(randomWinner, true);
+            }
+          }
+          return;
+        } else if (this.fighter1.stats.hp <= 0) {
+          this.endRound(this.fighter2, true);
+          return;
+        } else if (this.fighter2.stats.hp <= 0) {
+          this.endRound(this.fighter1, true);
+          return;
+        }
+        
+        // Always ensure fighters are facing each other
+        // Only if they have sprites with setFlipX method
+        if (this.fighter1.sprite && this.fighter2.sprite && 
+            this.fighter1.sprite.setFlipX && this.fighter2.sprite.setFlipX) {
+          this.fighter1.updateFacing(this.fighter2);
+          this.fighter2.updateFacing(this.fighter1);
         }
         
         // Update fighter UI
