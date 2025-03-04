@@ -74,13 +74,18 @@ class GenericSkill {
       
       // Create effect sprite if animation exists
       if (this.scene.anims.exists(this.effectAnimationKey)) {
-        // Position effect in front of fighter
-        const effectX = this.fighter.sprite.x + (this.fighter.isPlayer1 ? 100 : -100);
+        // Position effect in front of fighter based on the direction they're facing
+        // If sprite is flipped (facing left), effect should appear to the left
+        // If sprite is not flipped (facing right), effect should appear to the right
+        const facingRight = !this.fighter.sprite.flipX;
+        const effectX = this.fighter.sprite.x + (facingRight ? 100 : -100);
         const effectY = this.fighter.sprite.y;
         
         // Create effect sprite
         this.effectSprite = this.scene.add.sprite(effectX, effectY, this.fighter.sprite.texture.key);
         this.effectSprite.setScale(this.fighter.sprite.scaleX, this.fighter.sprite.scaleY);
+        
+        // Match the effect sprite's flip with the fighter's orientation
         this.effectSprite.setFlipX(this.fighter.sprite.flipX);
         
         // Play effect animation

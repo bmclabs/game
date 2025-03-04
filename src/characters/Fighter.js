@@ -559,8 +559,11 @@ class Fighter {
       
       // Decide what to do based on time
       if (time > this.nextActionTime) {
-        // Reset action time with some randomness to make AI less predictable
-        this.nextActionTime = time + this.actionDelay + Math.random() * 1000;
+        // Reduce action delay to make fighters more active
+        // Use fighter's actionDelay or default to a shorter delay (500-800ms)
+        const baseDelay = this.stats.actionDelay || 500;
+        // Add less randomness to make actions more frequent
+        this.nextActionTime = time + baseDelay + Math.random() * 300;
         
         // Get fighter's personality traits from stats or use defaults
         const aggressiveness = this.stats.aggressiveness || 50; // 0-100 scale
@@ -572,31 +575,52 @@ class Fighter {
         const opponentHealthRatio = opponent.stats.hp / opponent.stats.maxHp;
         
         // Calculate action probabilities based on health and personality
-        let attackProb = aggressiveness * 0.8;
-        let defendProb = defensiveness * 0.8;
+        // Increase base attack probability to make fighters more aggressive
+        let attackProb = aggressiveness * 1.0; // Increased from 0.8 to 1.0
+        let defendProb = defensiveness * 0.6; // Reduced from 0.8 to 0.6
         let jumpProb = jumpiness * 0.8;
-        let moveProb = 50;
+        let moveProb = 60; // Increased from 50 to 60
         
         // Adjust probabilities based on health
         if (healthRatio < 0.3) {
-          // Low health - more defensive
-          defendProb += 30;
-          attackProb -= 20;
+          // Low health - still be somewhat aggressive
+          defendProb += 20; // Reduced from 30 to 20
+          attackProb -= 10; // Reduced penalty from 20 to 10
           jumpProb += 10;
         } else if (healthRatio > 0.7 && opponentHealthRatio < 0.5) {
           // High health vs low health opponent - more aggressive
-          attackProb += 20;
-          defendProb -= 10;
+          attackProb += 30; // Increased from 20 to 30
+          defendProb -= 15; // Increased from 10 to 15
         }
         
         // Adjust probabilities based on distance
         const inAttackRange = distance < (this.attackRange || 150);
         if (inAttackRange) {
-          attackProb += 20;
-          moveProb -= 20;
+          attackProb += 40; // Increased from 30 to 40
+          moveProb -= 30;
         } else {
-          moveProb += 20;
+          moveProb += 40; // Increased from 30 to 40
           attackProb -= 10;
+        }
+        
+        // If fighter has been idle for too long, force movement
+        const currentTime = this.scene.time.now;
+        if (!this.lastActionTime) this.lastActionTime = currentTime;
+        
+        const idleTime = currentTime - this.lastActionTime;
+        const maxIdleTime = 1000; // 1 second max idle time
+        
+        if (idleTime > maxIdleTime) {
+          // Force movement or attack if idle for too long
+          if (inAttackRange) {
+            // Force attack if in range
+            this.attack(opponent);
+          } else {
+            // Force movement toward opponent
+            this.approachOpponent(opponent);
+          }
+          this.lastActionTime = currentTime;
+          return;
         }
         
         // Normalize probabilities
@@ -615,16 +639,16 @@ class Fighter {
           if (inAttackRange) {
             // Choose attack type
             const attackType = Math.random() * 100;
-            if (attackType < 15 && this.stats.mana >= this.stats.specialSkill2Cost) {
-              // Use special skill 2
+            if (attackType < 25 && this.stats.mana >= this.stats.specialSkill2Cost) {
+              // Use special skill 2 - increased probability from 15 to 25
               console.log(`${this.stats.name} using special skill 2`);
               this.useSpecialSkill(2);
-            } else if (attackType < 40 && this.stats.mana >= this.stats.specialSkill1Cost) {
-              // Use special skill 1
+            } else if (attackType < 55 && this.stats.mana >= this.stats.specialSkill1Cost) {
+              // Use special skill 1 - increased probability from 40 to 55
               console.log(`${this.stats.name} using special skill 1`);
               this.useSpecialSkill(1);
-            } else if (attackType < 60) {
-              // Kick
+            } else if (attackType < 70) {
+              // Kick - increased probability from 60 to 70
               console.log(`${this.stats.name} kicking`);
               this.kick(opponent);
             } else {
@@ -638,8 +662,8 @@ class Fighter {
             console.log(`${this.stats.name} moving toward opponent`);
             this.move(direction);
             
-            // Stop moving after a random time
-            this.scene.time.delayedCall(300 + Math.random() * 700, () => {
+            // Reduce movement time to make fighters more responsive
+            this.scene.time.delayedCall(200 + Math.random() * 300, () => {
               this.stopMoving();
             });
           }
@@ -649,8 +673,8 @@ class Fighter {
           console.log(`${this.stats.name} defending`);
           this.defend(true);
           
-          // Stop defending after a random time
-          this.scene.time.delayedCall(500 + Math.random() * 1000, () => {
+          // Reduce defend time to make fighters more active
+          this.scene.time.delayedCall(300 + Math.random() * 400, () => {
             this.defend(false);
           });
         }
@@ -658,8 +682,8 @@ class Fighter {
         else if (action < (currentThreshold += jumpProb)) {
           // Decide jump type
           const jumpType = Math.random() * 100;
-          if (jumpType < 30 && distance < 200) {
-            // Jump over opponent
+          if (jumpType < 40 && distance < 200) {
+            // Jump over opponent - increased probability from 30 to 40
             console.log(`${this.stats.name} jumping over opponent`);
             this.jumpOverOpponent(opponent);
           } else {
@@ -676,8 +700,8 @@ class Fighter {
             // Move away when low health
             console.log(`${this.stats.name} moving away`);
             this.moveAway(opponent);
-          } else if (moveType < 70) {
-            // Move toward opponent
+          } else if (moveType < 80) {
+            // Move toward opponent - increased probability from 70 to 80
             console.log(`${this.stats.name} moving toward opponent`);
             this.approachOpponent(opponent);
           } else {
@@ -687,11 +711,14 @@ class Fighter {
             this.move(direction);
           }
           
-          // Stop moving after a random time
-          this.scene.time.delayedCall(300 + Math.random() * 1000, () => {
+          // Reduce movement time to make fighters more responsive
+          this.scene.time.delayedCall(200 + Math.random() * 300, () => {
             this.stopMoving();
           });
         }
+        
+        // Update last action time
+        this.lastActionTime = this.scene.time.now;
       }
     } catch (error) {
       console.error(`Error in updateAI for ${this.stats?.name}:`, error);
@@ -699,125 +726,191 @@ class Fighter {
   }
 
   approachOpponent(opponent) {
-    // Calculate optimal attack position
-    const baseOffset = this.attackRange * 0.5; // Reduced offset for closer combat
-    const randomOffset = Math.random() * (this.attackRange * 0.2);
-    const offset = baseOffset + randomOffset;
-
-    // Determine which side to approach from
-    const approachFromLeft = this.sprite.x < opponent.sprite.x;
-    this.targetPosition = opponent.sprite.x + (approachFromLeft ? -offset : offset);
-
-    // Ensure target position is within bounds
-    this.targetPosition = Math.max(100, Math.min(700, this.targetPosition));
+    if (!opponent || !opponent.sprite || !this.sprite) return;
+    
+    // Determine direction to opponent
+    const direction = this.sprite.x < opponent.sprite.x ? 1 : -1;
+    
+    // Calculate preferred distance from stats or use default
+    const preferredDistance = this.stats.preferredDistance || 120;
+    
+    // Calculate current distance
+    const distance = Math.abs(this.sprite.x - opponent.sprite.x);
+    
+    // If already at preferred distance, don't move
+    if (Math.abs(distance - preferredDistance) < 20) {
+      this.stopMoving();
+      return;
+    }
+    
+    // Move toward opponent but stop at preferred distance
+    if (distance > preferredDistance) {
+      // Add a small chance to jump while approaching
+      if (Math.random() < 0.2) {
+        this.jump();
+      }
+      
+      // Move toward opponent
+      this.move(direction);
+    } else {
+      // Too close, move away slightly
+      this.move(-direction);
+    }
+    
+    // Stop moving after a short time to reassess
+    this.scene.time.delayedCall(200 + Math.random() * 300, () => {
+      this.stopMoving();
+    });
   }
 
   moveAway(opponent) {
-    // Calculate escape distance based on current position
-    const minDistance = 150;
-    const maxDistance = 250;
-    const moveDistance = minDistance + Math.random() * (maxDistance - minDistance);
-
-    // Determine escape direction (prefer moving towards center if near edges)
-    const nearLeftEdge = this.sprite.x < 250;
-    const nearRightEdge = this.sprite.x > 550;
-
-    let escapeDirection;
-    if (nearLeftEdge) {
-      escapeDirection = 1; // Move right
-    } else if (nearRightEdge) {
-      escapeDirection = -1; // Move left
-    } else {
-      // Move away from opponent
-      escapeDirection = this.sprite.x < opponent.sprite.x ? -1 : 1;
+    if (!opponent || !opponent.sprite || !this.sprite) return;
+    
+    // Determine direction away from opponent
+    const direction = this.sprite.x < opponent.sprite.x ? -1 : 1;
+    
+    // Add a chance to jump while moving away
+    if (Math.random() < 0.3) {
+      this.jump();
     }
-
-    this.targetPosition = this.sprite.x + (moveDistance * escapeDirection);
-    this.targetPosition = Math.max(100, Math.min(700, this.targetPosition));
+    
+    // Move away from opponent
+    this.move(direction);
+    
+    // Stop moving after a short time to reassess
+    this.scene.time.delayedCall(150 + Math.random() * 250, () => {
+      this.stopMoving();
+      
+      // After moving away, have a chance to immediately counter-attack
+      if (Math.random() < 0.4 && this.stats.mana >= this.stats.specialSkill1Cost) {
+        this.useSpecialSkill(1);
+      }
+    });
   }
 
   jump() {
-    if (!this.isJumping) {
-      this.isJumping = true;
-      this.jumpVelocity = this.jumpSpeed;
-
-      // Play jump sound with reduced volume
-      this.scene.sound.play('jump', { volume: 0.1 });
-
-      // Add random horizontal movement during jump
-      const jumpDistance = (Math.random() - 0.5) * 200;
-      const newX = Math.max(100, Math.min(700, this.sprite.x + jumpDistance));
-
-      this.scene.tweens.add({
-        targets: [this.sprite, this.hitbox],
-        x: newX,
-        duration: 500,
-        ease: 'Power1'
-      });
-    }
-  }
-
-  jumpOverOpponent(opponent) {
-    if (this.isJumping || this.isAttacking || this.isDefending || this.isUsingSkill) return false;
+    if (this.isJumping || this.isAttacking || this.isDefending) return;
     
     this.isJumping = true;
     
-    // Calculate jump destination (other side of opponent)
-    const currentX = this.sprite.x;
-    const opponentX = opponent.sprite.x;
-    const jumpDistance = 100; // Distance beyond opponent
-    
-    // Determine jump direction
-    const jumpDirection = currentX < opponentX ? 1 : -1;
-    const destinationX = opponentX + (jumpDirection * jumpDistance);
-    
-    // Play jump animation if it's a sprite with animations
-    if (this.sprite.anims && this.sprite.play && this.fighterName) {
-      const jumpAnim = this.sprite.anims.animationManager.get(`${this.fighterName}_jump`);
-      if (jumpAnim) {
-        this.sprite.play(`${this.fighterName}_jump`);
-      }
+    // Play jump sound
+    try {
+      this.scene.sound.play('jump', { volume: 0.3 });
+    } catch (error) {
+      console.warn('Could not play jump sound:', error);
     }
     
-    // Create jump tween
+    // Play jump animation if available
+    if (this.sprite.anims && this.sprite.anims.animationManager.exists(`${this.fighterName}_jump`)) {
+      this.sprite.play(`${this.fighterName}_jump`);
+    }
+    
+    // Calculate jump height and duration
+    const jumpHeight = 100 + Math.random() * 50; // Randomize jump height
+    const jumpDuration = 400 + Math.random() * 100; // Randomize jump duration
+    
+    // Jump tween
     this.scene.tweens.add({
       targets: this.sprite,
-      x: destinationX,
-      y: this.sprite.y - 150, // Jump height
-      duration: 800,
-      ease: 'Quad.out',
-      yoyo: false,
+      y: this.sprite.y - jumpHeight,
+      duration: jumpDuration / 2,
+      ease: 'Sine.easeOut',
       onComplete: () => {
-        // Land at destination
+        // Fall down
         this.scene.tweens.add({
           targets: this.sprite,
           y: this.groundY,
-          duration: 300,
-          ease: 'Bounce.out',
+          duration: jumpDuration / 2,
+          ease: 'Sine.easeIn',
           onComplete: () => {
             this.isJumping = false;
             
-            // IMPORTANT: Update facing direction to face opponent after landing if we have setFlipX method
-            if (opponent && opponent.sprite && this.sprite.setFlipX) {
-              this.updateFacing(opponent);
+            // After landing, have a chance to immediately attack
+            if (Math.random() < 0.4 && this.target && 
+                Math.abs(this.sprite.x - this.target.sprite.x) < this.attackRange) {
+              if (Math.random() < 0.5) {
+                this.attack(this.target);
+              } else {
+                this.kick(this.target);
+              }
             }
             
-            // Return to idle animation if it's a sprite with animations
-            if (this.sprite.anims && this.sprite.play && this.fighterName) {
-              this.sprite.play(`${this.fighterName}_idle`);
+            // Play idle animation
+            if (this.sprite.anims) {
+              this.sprite.play(`${this.fighterName}_idle`, true);
             }
           }
         });
-      },
-      // Update facing during the jump as well if we have setFlipX method
-      onUpdate: () => {
-        if (opponent && opponent.sprite && this.sprite.setFlipX) {
-          this.updateFacing(opponent);
-        }
       }
     });
+  }
+
+  jumpOverOpponent(opponent) {
+    if (this.isJumping || this.isAttacking || this.isDefending || !opponent || !opponent.sprite) return;
     
-    return true;
+    this.isJumping = true;
+    
+    // Play jump sound
+    try {
+      this.scene.sound.play('jump', { volume: 0.3 });
+    } catch (error) {
+      console.warn('Could not play jump sound:', error);
+    }
+    
+    // Play jump animation if available
+    if (this.sprite.anims && this.sprite.anims.animationManager.exists(`${this.fighterName}_jump`)) {
+      this.sprite.play(`${this.fighterName}_jump`);
+    }
+    
+    // Calculate jump parameters
+    const jumpHeight = 120 + Math.random() * 50; // Higher jump to clear opponent
+    const jumpDuration = 500 + Math.random() * 100;
+    
+    // Calculate target position (other side of opponent)
+    const currentX = this.sprite.x;
+    const opponentX = opponent.sprite.x;
+    const direction = currentX < opponentX ? 1 : -1;
+    const jumpDistance = Math.abs(currentX - opponentX) + 50 + Math.random() * 50;
+    const targetX = currentX + (direction * jumpDistance);
+    
+    // Jump tween with horizontal movement
+    this.scene.tweens.add({
+      targets: this.sprite,
+      x: targetX,
+      y: this.sprite.y - jumpHeight,
+      duration: jumpDuration / 2,
+      ease: 'Sine.easeOut',
+      onComplete: () => {
+        // Fall down
+        this.scene.tweens.add({
+          targets: this.sprite,
+          y: this.groundY,
+          duration: jumpDuration / 2,
+          ease: 'Sine.easeIn',
+          onComplete: () => {
+            this.isJumping = false;
+            
+            // Update facing after landing
+            this.updateFacing(opponent);
+            
+            // After landing, have a chance to immediately attack from behind
+            if (Math.random() < 0.6 && 
+                Math.abs(this.sprite.x - opponent.sprite.x) < this.attackRange) {
+              if (Math.random() < 0.3 && this.stats.mana >= this.stats.specialSkill1Cost) {
+                this.useSpecialSkill(1);
+              } else {
+                this.attack(opponent);
+              }
+            }
+            
+            // Play idle animation
+            if (this.sprite.anims) {
+              this.sprite.play(`${this.fighterName}_idle`, true);
+            }
+          }
+        });
+      }
+    });
   }
 
   swapPositionWithOpponent(opponent) {

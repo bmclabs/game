@@ -73,12 +73,14 @@ class PepeSkill2 {
                 const target = this.fighter.target;
                 if (!target) return;
                 
-                const effectX = target.sprite.x;
-                const effectY = target.sprite.y;
+                // Determine position based on fighter's facing direction
+                const facingRight = !this.fighter.sprite.flipX;
+                const effectX = this.fighter.sprite.x + (facingRight ? 100 : -100);
+                const effectY = this.fighter.sprite.y;
                 
                 const effect = scene.add.sprite(effectX, effectY, 'pepe_atlas');
                 effect.setScale(this.fighter.sprite.scale * 2.5);
-                effect.setFlipX(!this.fighter.isPlayer1);
+                effect.setFlipX(this.fighter.sprite.flipX); // Match fighter's orientation
                 effect.play('pepe_ulti_effect', true);
                 
                 scene.time.delayedCall(500, () => {

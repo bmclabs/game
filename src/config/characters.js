@@ -8,7 +8,7 @@ const CHARACTERS = [
     baseAttack: 16,
     critical: 20,
     defend: 8,
-    kickProbability: 7,
+    kickProbability: 15,
     specialSkill1Cost: 45,
     specialSkill2Cost: 80,
     specialSkill1Name: 'Poison Strike',
@@ -19,14 +19,14 @@ const CHARACTERS = [
     description: 'High risk, high reward fighter with powerful special attacks',
     aiStyle: 'aggressive', // AI behavior style
     attackRange: 120, // Range at which fighter can attack
-    actionDelay: 800, // Base delay between AI actions
+    actionDelay: 600,
     // Personality traits (0-100 scale)
-    aggressiveness: 70,
-    defensiveness: 30,
-    jumpiness: 50,
+    aggressiveness: 80,
+    defensiveness: 20,
+    jumpiness: 60,
     // Movement preferences
-    preferredDistance: 150, // Preferred distance from opponent
-    retreatHealthThreshold: 0.3, // Health ratio at which fighter prefers to retreat
+    preferredDistance: 120,
+    retreatHealthThreshold: 0.2,
   },
   {
     name: 'Trump',
@@ -37,7 +37,7 @@ const CHARACTERS = [
     baseAttack: 15,
     critical: 12,
     defend: 11,
-    kickProbability: 10,
+    kickProbability: 20,
     specialSkill1Cost: 35,
     specialSkill2Cost: 68,
     specialSkill1Name: 'Trump Rush',
@@ -48,13 +48,13 @@ const CHARACTERS = [
     description: 'Balanced fighter with good defense and offense',
     aiStyle: 'balanced', // AI behavior style
     attackRange: 100, // Range at which fighter can attack
-    actionDelay: 1000, // Base delay between AI actions
+    actionDelay: 700,
     // Personality traits (0-100 scale)
-    aggressiveness: 50,
-    defensiveness: 60,
-    jumpiness: 30,
+    aggressiveness: 65,
+    defensiveness: 45,
+    jumpiness: 40,
     // Movement preferences
-    preferredDistance: 120, // Preferred distance from opponent
-    retreatHealthThreshold: 0.4, // Health ratio at which fighter prefers to retreat
+    preferredDistance: 100,
+    retreatHealthThreshold: 0.3,
   }
 ]; 

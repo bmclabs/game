@@ -78,12 +78,18 @@ class TrumpSkill2 {
                 const target = this.fighter.target;
                 if (!target) return;
 
+                // Determine position based on fighter's facing direction
+                const facingRight = !this.fighter.sprite.flipX;
+                const effectX = this.fighter.sprite.x + (facingRight ? 100 : -100);
+                const effectY = this.fighter.sprite.y;
+
                 const effect = scene.add.sprite(
-                  target.sprite.x,
-                  target.sprite.y,
+                  effectX,
+                  effectY,
                   'trump_atlas'
                 );
                 effect.setScale(this.fighter.sprite.scale * 2.5);
+                effect.setFlipX(this.fighter.sprite.flipX); // Match fighter's orientation
                 effect.play('trump_ulti_effect');
 
                 scene.time.delayedCall(200, () => {
