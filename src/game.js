@@ -14,7 +14,17 @@ const config = {
             debug: false
         }
     },
-    scene: [PreparationScene, BattleScene, TestFighterScene, TestPepeScene, TestTrumpScene, TestDogeScene, TestShibaScene]
+    scene: [
+        PreparationScene,
+        BattleScene,
+        TestFighterScene,
+        TestPepeScene,
+        TestTrumpScene,
+        TestDogeScene,
+        TestShibaScene,
+        TestPenguScene,
+        TestBrettScene
+    ]
 };
 
 // Initialize the game when the window loads
