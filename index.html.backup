@@ -12,18 +12,9 @@
             align-items: center;
             min-height: 100vh;
             background: #1a1a1a;
-            overflow: hidden;
         }
         #renderDiv {
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            width: 800px;
-            height: 600px;
-            position: relative;
-        }
-        canvas {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
@@ -74,27 +65,5 @@
 
     <!-- Main Game -->
     <script src="src/game.js"></script>
-    
-    <!-- Force rendering for headless mode -->
-    <script>
-        // Force canvas to be visible
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                const canvas = document.querySelector('canvas');
-                if (canvas) {
-                    canvas.style.display = 'block';
-                    canvas.style.visibility = 'visible';
-                    canvas.style.opacity = '1';
-                    console.log('Canvas visibility enforced');
-                }
-                
-                // Force a redraw
-                if (window.game && window.game.renderer) {
-                    window.game.renderer.resize(800, 600);
-                    console.log('Renderer resized');
-                }
-            }, 1000);
-        });
-    </script>
 </body>
-</html>
+</html> 
