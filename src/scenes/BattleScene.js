@@ -819,40 +819,47 @@ class BattleScene extends Phaser.Scene {
 
   endRound(winner, isKO) {
     try {
-      // Stop the game
-      this.isGameActive = false;
+      // Determine loser
+      const loser = winner === this.fighter1 ? this.fighter2 : this.fighter1;
       
-      // Update round winner
-      winner.winRound();
-      
-      // Show KO text if applicable
-      if (isKO) {
-        this.koText.setVisible(true);
-        
-        // Add scaling animation for KO text
-        this.tweens.add({
-          targets: this.koText,
-          scaleX: 1.5,
-          scaleY: 1.5,
-          duration: 500,
-          yoyo: true,
-          repeat: 1,
-          onComplete: () => {
-            this.time.delayedCall(1000, () => {
-              this.koText.setVisible(false);
-              this.showRoundResult(winner);
-            });
-          }
+      // Send match result to backend
+      gameApiClient.sendMatchResult(winner.stats, loser.stats, isKO)
+        .then(() => {
+          console.log('Match result sent to backend');
+        })
+        .catch(error => {
+          console.error('Error sending match result:', error);
         });
-      } else {
-        // Show round result immediately if not KO
-        this.showRoundResult(winner);
-      }
-    } catch (error) {
-      console.error('Error in endRound:', error);
       
-      // Try to recover
+      // Show round result
       this.showRoundResult(winner);
+      
+      // Disable fighter controls
+      this.controlsEnabled = false;
+      
+      // Stop the timer
+      this.timerEvent.remove();
+      
+      // Add a delay before starting the next round
+      this.time.delayedCall(5000, () => {
+        // Set game mode back to preparation
+        gameApiClient.updateGameMode('preparation')
+          .then(() => {
+            console.log('Game mode set back to preparation');
+          })
+          .catch(error => {
+            console.error('Error updating game mode:', error);
+          });
+        
+        // Start next round or new match
+        if (this.roundNumber < 3) {
+          this.startNextRound();
+        } else {
+          this.startNewMatch();
+        }
+      });
+    } catch (error) {
+      console.error('Error ending round:', error);
     }
   }
 

@@ -1,0 +1,17 @@
+{
+  "name": "battle-memecoin-club-game",
+  "version": "1.0.0",
+  "description": "Battle Memecoin Club Game with Authentication System",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server -p 8080",
+    "test-auth": "node test-game-auth.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7",
+    "http-server": "^14.1.1"
+  },
+  "devDependencies": {},
+  "author": "",
+  "license": "ISC"
+} 

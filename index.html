@@ -16,11 +16,31 @@
         #renderDiv {
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
+        #authError {
+            color: #ff5555;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-align: center;
+            max-width: 600px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: none;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
 </head>
 <body>
     <div id="renderDiv"></div>
+    <div id="authError">
+        Authentication required. Please <a href="auth.html" style="color: #ffff00;">login</a> to access the game.
+    </div>
+
+    <!-- Authentication -->
+    <script src="src/auth/auth.js"></script>
+    <script src="src/auth/api-client.js"></script>
+    
     <!-- Configuration -->
     <script src="src/config/characters.js"></script>
 
@@ -63,7 +83,40 @@
     <script src="src/scenes/TestPenguScene.js"></script>
     <script src="src/scenes/TestBrettScene.js"></script>
 
-    <!-- Main Game -->
-    <script src="src/game.js"></script>
+    <!-- Authentication Check -->
+    <script>
+        // Check if the user is authenticated
+        function checkAuthentication() {
+            // Get token from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            
+            // If token exists, store it in session
+            if (token) {
+                session.set('gameSessionToken', token);
+                // Remove token from URL (for security)
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return true;
+            }
+            
+            // Check if we have a game session token
+            const gameSessionToken = session.get('gameSessionToken');
+            
+            if (!gameSessionToken) {
+                // Show auth error and hide game container
+                document.getElementById('renderDiv').style.display = 'none';
+                document.getElementById('authError').style.display = 'block';
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Only load the game if authenticated
+        if (checkAuthentication()) {
+            // Main Game
+            document.write('<script src="src/game.js"><\/script>');
+        }
+    </script>
 </body>
 </html> 

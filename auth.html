@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Battle Memecoin Club - Authentication</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            color: #fff;
+        }
+        .auth-container {
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            width: 350px;
+            text-align: center;
+        }
+        .auth-container h1 {
+            margin-top: 0;
+            color: #ffff00;
+            text-shadow: 0 0 5px rgba(255, 255, 0, 0.5);
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            background: #3a3a3a;
+            color: #fff;
+            box-sizing: border-box;
+        }
+        .btn {
+            background: #ffff00;
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        .btn:hover {
+            background: #cccc00;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .error-message {
+            color: #ff5555;
+            margin-top: 10px;
+            display: none;
+        }
+        .auth-key-container {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h1>Battle Memecoin Club</h1>
+        <div id="login-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="Enter your username">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter your password">
+            </div>
+            <button class="btn" id="login-btn">Login</button>
+            <div class="error-message" id="login-error">Invalid username or password</div>
+        </div>
+        
+        <div id="auth-key-form" class="auth-key-container">
+            <div class="form-group">
+                <label for="game-auth-key">Game Authentication Key</label>
+                <input type="text" id="game-auth-key" placeholder="Enter your game authentication key">
+            </div>
+            <button class="btn" id="auth-key-btn">Verify & Launch Game</button>
+            <div class="error-message" id="auth-key-error">Invalid authentication key</div>
+        </div>
+    </div>
+
+    <script src="src/auth/auth.js"></script>
+</body>
+</html> 

@@ -278,7 +278,7 @@ class PreparationScene extends Phaser.Scene {
   
   selectRandomFighters() {
     try {
-      // Get available fighters
+      // Get all available fighters
       const availableFighters = [...CHARACTERS];
       
       // Make sure we have at least two fighters
@@ -287,46 +287,36 @@ class PreparationScene extends Phaser.Scene {
         return;
       }
       
-      // Select random fighter 1
+      // Select random fighters
       const fighter1Index = Math.floor(Math.random() * availableFighters.length);
-      this.fighter1Stats = availableFighters[fighter1Index];
+      const fighter1 = availableFighters[fighter1Index];
       
-      // Remove fighter 1 from available fighters
+      // Remove the first fighter from the array
       availableFighters.splice(fighter1Index, 1);
       
-      // Select random fighter 2
+      // Select second fighter
       const fighter2Index = Math.floor(Math.random() * availableFighters.length);
-      this.fighter2Stats = availableFighters[fighter2Index];
+      const fighter2 = availableFighters[fighter2Index];
       
-      console.log(`Selected random fighters: ${this.fighter1Stats.name} vs ${this.fighter2Stats.name}`);
+      console.log('Selected fighters:', fighter1.name, 'vs', fighter2.name);
       
-      // Create fighter displays
-      this.fighter1 = FighterFactory.createFighter(this, 200, 300, this.fighter1Stats, true);
-      if (this.fighter1 && this.fighter1.sprite) {
-        this.fighter1.sprite.setScale(this.fighter1.sprite.scaleX * 1.1);
-      }
+      // Update fighter stats
+      this.fighter1Stats = fighter1;
+      this.fighter2Stats = fighter2;
       
-      this.fighter2 = FighterFactory.createFighter(this, 600, 300, this.fighter2Stats, false);
-      if (this.fighter2 && this.fighter2.sprite) {
-        this.fighter2.sprite.setScale(this.fighter2.sprite.scaleX * 1.1);
-      }
+      // Send next match fighters to backend
+      gameApiClient.sendNextMatchFighters(fighter1, fighter2)
+        .then(() => {
+          console.log('Next match fighters sent to backend');
+        })
+        .catch(error => {
+          console.error('Error sending next match fighters:', error);
+        });
       
-      // Add fighter names
-      this.add.text(200, 400, this.fighter1Stats.name, {
-        fontSize: '24px',
-        fill: '#fff',
-        stroke: '#000',
-        strokeThickness: 4
-      }).setOrigin(0.5);
-      
-      this.add.text(600, 400, this.fighter2Stats.name, {
-        fontSize: '24px',
-        fill: '#fff',
-        stroke: '#000',
-        strokeThickness: 4
-      }).setOrigin(0.5);
+      // Recreate fighter selection with new fighters
+      this.createFighterSelection();
     } catch (error) {
-      console.error('Error in selectRandomFighters:', error);
+      console.error('Error selecting random fighters:', error);
     }
   }
 
@@ -427,32 +417,29 @@ class PreparationScene extends Phaser.Scene {
   
   startBattle() {
     try {
-      // Stop preparation background music
+      // Stop preparation music
       if (this.backgroundMusic) {
         this.backgroundMusic.stop();
       }
       
-      // Stop all tweens before transitioning
-      this.tweens.killAll();
+      // Notify backend about mode change
+      gameApiClient.updateGameMode('battle')
+        .then(() => {
+          console.log('Game mode set to battle');
+        })
+        .catch(error => {
+          console.error('Error updating game mode:', error);
+        });
       
-      // Reset fighter positions and scales if they exist
-      if (this.fighter1 && this.fighter1.sprite) {
-        this.fighter1.sprite.setScale(this.fighter1.sprite.scaleX / 1.1);
-      }
-      
-      if (this.fighter2 && this.fighter2.sprite) {
-        this.fighter2.sprite.setScale(this.fighter2.sprite.scaleX / 1.1);
-      }
-      
-      // Start battle scene
+      // Start the battle scene
       this.scene.start('BattleScene', {
-        roundNumber: this.roundNumber,
         fighter1Stats: this.fighter1Stats,
         fighter2Stats: this.fighter2Stats,
-        arenaNumber: this.currentArena
+        arenaNumber: this.currentArena,
+        roundNumber: this.roundNumber
       });
     } catch (error) {
-      console.error('Error in startBattle:', error);
+      console.error('Error starting battle:', error);
     }
   }
 }
