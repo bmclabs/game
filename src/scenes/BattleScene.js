@@ -63,15 +63,18 @@ class BattleScene extends Phaser.Scene {
   }
 
   init(data) {
-    // Store round number
-    this.roundNumber = data?.roundNumber || 1;
+    // Store the round number
+    this.roundNumber = data.roundNumber || 1;
     
     // Store fighter stats
-    this.fighter1Stats = data?.fighter1Stats;
-    this.fighter2Stats = data?.fighter2Stats;
+    this.fighter1Stats = data.fighter1Stats;
+    this.fighter2Stats = data.fighter2Stats;
     
     // Store arena number
-    this.arenaNumber = data?.arenaNumber || 1;
+    this.arenaNumber = data.arenaNumber || 1;
+    
+    // Auto mode flag
+    this.autoMode = data.autoMode || false;
     
     // Initialize game state
     this.isGameActive = false;
@@ -82,8 +85,10 @@ class BattleScene extends Phaser.Scene {
     // Stop any currently playing background music
     this.sound.stopAll();
     
-    console.log(`Initializing battle: Round ${this.roundNumber}, Arena ${this.arenaNumber}`);
-    console.log(`Fighter 1: ${this.fighter1Stats?.name}, Fighter 2: ${this.fighter2Stats?.name}`);
+    console.log(`Battle Scene initialized: Round ${this.roundNumber}, Arena ${this.arenaNumber}`);
+    console.log(`Fighter 1: ${this.fighter1Stats ? this.fighter1Stats.name : 'Not selected'}`);
+    console.log(`Fighter 2: ${this.fighter2Stats ? this.fighter2Stats.name : 'Not selected'}`);
+    console.log(`Auto Mode: ${this.autoMode ? 'Enabled' : 'Disabled'}`);
   }
 
   create() {
@@ -184,6 +189,33 @@ class BattleScene extends Phaser.Scene {
       
       // Start countdown
       this.startCountdown();
+
+      // After creating fighters and setting up the battle
+      if (this.autoMode) {
+        // Disable user input in auto mode
+        this.input.keyboard.enabled = false;
+        
+        // Start AI for both fighters
+        this.fighter1.enableAI();
+        this.fighter2.enableAI();
+        
+        // Add a timer to end the match automatically
+        this.time.delayedCall(180000, () => { // 3 minutes
+          // Determine winner based on remaining HP
+          let winner;
+          if (this.fighter1.stats.hp > this.fighter2.stats.hp) {
+            winner = this.fighter1;
+          } else if (this.fighter2.stats.hp > this.fighter1.stats.hp) {
+            winner = this.fighter2;
+          } else {
+            // Random winner in case of tie
+            winner = Math.random() > 0.5 ? this.fighter1 : this.fighter2;
+          }
+          
+          // End the battle
+          this.endBattle(winner);
+        });
+      }
     } catch (error) {
       console.error('Error in create:', error);
     }
@@ -904,6 +936,117 @@ class BattleScene extends Phaser.Scene {
       }
     } catch (error) {
       console.error('Error in updateTimer:', error);
+    }
+  }
+
+  endBattle(winner) {
+    // Display winner
+    const winnerText = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY - 100,
+      `${winner.stats.name} WINS!`,
+      {
+        fontSize: '48px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 6,
+        shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 2, stroke: true, fill: true }
+      }
+    ).setOrigin(0.5);
+    
+    // Add some visual effects
+    this.tweens.add({
+      targets: winnerText,
+      scale: { from: 0.5, to: 1 },
+      alpha: { from: 0, to: 1 },
+      duration: 1000,
+      ease: 'Bounce.Out'
+    });
+    
+    // Play winner animation if available
+    if (winner.sprite && winner.sprite.play && winner.sprite.anims.exists(`${winner.fighterName}_win`)) {
+      winner.sprite.play(`${winner.fighterName}_win`);
+    }
+    
+    // In auto mode, prepare for next match
+    if (this.autoMode) {
+      console.log('Auto mode enabled, preparing for next match...');
+      
+      // Add a "Next Match" text
+      const nextMatchText = this.add.text(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY + 50,
+        'NEXT MATCH STARTING SOON',
+        {
+          fontSize: '24px',
+          fontFamily: 'Arial',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 4,
+          shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 1, stroke: true, fill: true }
+        }
+      ).setOrigin(0.5).setAlpha(0);
+      
+      // Fade in the next match text
+      this.tweens.add({
+        targets: nextMatchText,
+        alpha: { from: 0, to: 1 },
+        duration: 1000,
+        delay: 2000
+      });
+      
+      // Wait 5 seconds, then transition to preparation scene
+      this.time.delayedCall(5000, () => {
+        // Fade out
+        this.cameras.main.fade(1000, 0, 0, 0);
+        
+        // When fade complete, go to preparation scene
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+          // The game.js auto-match logic will handle starting the next match
+          // but we'll transition to the preparation scene first
+          console.log('Transitioning to preparation scene for next match');
+          
+          // We don't need to pass any data here as the game.js logic will handle it
+          this.scene.start('PreparationScene');
+        });
+      });
+    } else {
+      // In manual mode, add a "Play Again" button
+      const playAgainButton = this.add.text(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY + 100,
+        'PLAY AGAIN',
+        {
+          fontSize: '32px',
+          fontFamily: 'Arial',
+          color: '#ffffff',
+          backgroundColor: '#00aa00',
+          padding: { x: 20, y: 10 },
+          stroke: '#000000',
+          strokeThickness: 4
+        }
+      ).setOrigin(0.5).setInteractive();
+      
+      // Add hover effect
+      playAgainButton.on('pointerover', () => {
+        playAgainButton.setStyle({ backgroundColor: '#00cc00' });
+      });
+      
+      playAgainButton.on('pointerout', () => {
+        playAgainButton.setStyle({ backgroundColor: '#00aa00' });
+      });
+      
+      // Add click handler
+      playAgainButton.on('pointerdown', () => {
+        // Fade out
+        this.cameras.main.fade(1000, 0, 0, 0);
+        
+        // When fade complete, go to preparation scene
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+          this.scene.start('PreparationScene');
+        });
+      });
     }
   }
 }

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle Memecoin Club - Live Stream</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            margin-bottom: 20px;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .video-container video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        h1 {
+            color: #ff6b00;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .card {
+            background-color: #2a2a2a;
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #ff6b00;
+            color: #fff;
+            font-weight: bold;
+        }
+        .btn-primary {
+            background-color: #ff6b00;
+            border-color: #ff6b00;
+        }
+        .btn-primary:hover {
+            background-color: #e05e00;
+            border-color: #e05e00;
+        }
+        .fighter-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .fighter {
+            text-align: center;
+            width: 48%;
+            padding: 15px;
+            background-color: #2a2a2a;
+            border-radius: 8px;
+        }
+        .fighter img {
+            max-width: 100px;
+            margin-bottom: 10px;
+        }
+        .vs {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff6b00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Battle Memecoin Club - Live Stream</h1>
+        
+        <div class="video-container">
+            <video id="video" controls></video>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                Stream Information
+            </div>
+            <div class="card-body">
+                <p>Watch the epic battles between your favorite memecoin characters! Fighters compete in real-time with their unique abilities and special moves.</p>
+                <p>Current stream: <span id="current-match">Loading...</span></p>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button class="btn btn-primary" type="button" onclick="refreshPlayer()">Refresh Stream</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="fighter-info">
+            <div class="fighter" id="fighter1">
+                <img src="https://via.placeholder.com/100" alt="Fighter 1">
+                <h4>Fighter 1</h4>
+                <p>Loading stats...</p>
+            </div>
+            <div class="vs">VS</div>
+            <div class="fighter" id="fighter2">
+                <img src="https://via.placeholder.com/100" alt="Fighter 2">
+                <h4>Fighter 2</h4>
+                <p>Loading stats...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            setupHlsPlayer();
+            
+            // Simulate match data (in a real implementation, this would come from your backend)
+            setTimeout(updateMatchInfo, 2000);
+        });
+        
+        function setupHlsPlayer() {
+            const video = document.getElementById('video');
+            const hlsUrl = '/hls/live.m3u8';
+            
+            if (Hls.isSupported()) {
+                const hls = new Hls();
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    video.play();
+                });
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    console.error('HLS error:', data);
+                    if (data.fatal) {
+                        setTimeout(() => {
+                            hls.destroy();
+                            setupHlsPlayer();
+                        }, 5000);
+                    }
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = hlsUrl;
+                video.addEventListener('loadedmetadata', function() {
+                    video.play();
+                });
+            } else {
+                console.error('HLS is not supported in this browser');
+                document.getElementById('video').innerHTML = 'Your browser does not support HLS streaming.';
+            }
+        }
+        
+        function refreshPlayer() {
+            const video = document.getElementById('video');
+            video.pause();
+            setupHlsPlayer();
+            updateMatchInfo();
+        }
+        
+        function updateMatchInfo() {
+            // This is simulated data - in a real implementation, fetch this from your backend
+            const fighters = [
+                { name: 'Pepe', image: '/assets/fighters/pepe.png', stats: 'HP: 260, Attack: 16, Defense: 8' },
+                { name: 'Trump', image: '/assets/fighters/trump.png', stats: 'HP: 295, Attack: 15, Defense: 11' },
+                { name: 'Doge', image: '/assets/fighters/doge.png', stats: 'HP: 280, Attack: 14, Defense: 9' },
+                { name: 'Shiba', image: '/assets/fighters/shiba.png', stats: 'HP: 270, Attack: 15, Defense: 10' },
+                { name: 'Pengu', image: '/assets/fighters/pengu.png', stats: 'HP: 280, Attack: 14, Defense: 10' },
+                { name: 'Brett', image: '/assets/fighters/brett.png', stats: 'HP: 290, Attack: 16, Defense: 12' }
+            ];
+            
+            // Randomly select two fighters
+            const fighter1Index = Math.floor(Math.random() * fighters.length);
+            let fighter2Index;
+            do {
+                fighter2Index = Math.floor(Math.random() * fighters.length);
+            } while (fighter2Index === fighter1Index);
+            
+            const fighter1 = fighters[fighter1Index];
+            const fighter2 = fighters[fighter2Index];
+            
+            // Update the UI
+            document.getElementById('current-match').textContent = `${fighter1.name} vs ${fighter2.name}`;
+            
+            const fighter1El = document.getElementById('fighter1');
+            fighter1El.querySelector('img').src = fighter1.image;
+            fighter1El.querySelector('img').alt = fighter1.name;
+            fighter1El.querySelector('h4').textContent = fighter1.name;
+            fighter1El.querySelector('p').textContent = fighter1.stats;
+            
+            const fighter2El = document.getElementById('fighter2');
+            fighter2El.querySelector('img').src = fighter2.image;
+            fighter2El.querySelector('img').alt = fighter2.name;
+            fighter2El.querySelector('h4').textContent = fighter2.name;
+            fighter2El.querySelector('p').textContent = fighter2.stats;
+        }
+    </script>
+</body>
+</html> 

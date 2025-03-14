@@ -52,11 +52,13 @@ class PreparationScene extends Phaser.Scene {
     // Store arena number
     this.currentArena = data.arenaNumber || Math.floor(Math.random() * 5) + 1;
     
-    // Store auto-start flag
+    // Store auto-start flag and auto mode
     this.autoStart = data.autoStart || false;
+    this.autoMode = data.autoMode || false;
+    this.preparationDuration = data.preparationDuration || 30000; // Default 30 seconds
     
     console.log(`Initializing preparation scene with fighters: ${this.fighter1Stats?.name} vs ${this.fighter2Stats?.name}, Arena: ${this.currentArena}`);
-    console.log(`Auto-start: ${this.autoStart}`);
+    console.log(`Auto-start: ${this.autoStart}, Auto-mode: ${this.autoMode}`);
 
     // Stop any currently playing background music
     this.sound.stopAll();
@@ -386,40 +388,107 @@ class PreparationScene extends Phaser.Scene {
 
   createStartButton() {
     try {
-      // Instead of a start button, add a countdown text that will automatically start the battle
-      const countdownText = this.add.text(400, 580, 'MATCH STARTING IN 10...', { // Moved down from 550 to 580
-        fontSize: '28px',
-        fill: '#fff',
-        stroke: '#000',
-        strokeThickness: 4,
-        shadow: { offsetX: 2, offsetY: 2, color: '#000', blur: 5, stroke: true, fill: true }
-      }).setOrigin(0.5);
+      // Create a visually appealing start button
+      const buttonBg = this.add.graphics();
+      buttonBg.fillStyle(0x00ff00, 0.8);
+      buttonBg.fillRoundedRect(300, 500, 200, 60, 15);
+      buttonBg.lineStyle(4, 0xffffff, 1);
+      buttonBg.strokeRoundedRect(300, 500, 200, 60, 15);
       
-      // Add a pulsing effect to the countdown text
+      // Add a glow effect to the button
+      const buttonGlow = this.add.graphics();
+      buttonGlow.fillStyle(0x00ff00, 0.3);
+      buttonGlow.fillRoundedRect(290, 490, 220, 80, 20);
+      buttonGlow.setDepth(-0.5);
+      
+      // Add pulsing effect to the button glow
       this.tweens.add({
-        targets: countdownText,
-        scale: { from: 1, to: 1.1 },
-        duration: 500,
+        targets: buttonGlow,
+        alpha: { from: 0.3, to: 0.6 },
+        duration: 1000,
         yoyo: true,
         repeat: -1
       });
       
-      // Start countdown
-      let countdown = 10;
-      const countdownInterval = setInterval(() => {
-        countdown--;
-        if (countdown > 0) {
-          countdownText.setText(`MATCH STARTING IN ${countdown}...`);
-        } else {
-          clearInterval(countdownInterval);
-          countdownText.setText('FIGHT!');
-          
-          // Start battle after a short delay
-          this.time.delayedCall(1000, () => {
-            this.startBattle();
-          });
-        }
-      }, 1000);
+      // Add start text with enhanced styling
+      const startText = this.add.text(400, 530, 'START BATTLE', {
+        fontSize: '24px',
+        fill: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#000',
+        strokeThickness: 4,
+        shadow: { offsetX: 2, offsetY: 2, color: '#000', blur: 3, stroke: true, fill: true }
+      }).setOrigin(0.5);
+      
+      // Group button elements
+      this.startButton = this.add.container(0, 0, [buttonBg, buttonGlow, startText]);
+      this.startButton.setInteractive(new Phaser.Geom.Rectangle(300, 500, 200, 60), Phaser.Geom.Rectangle.Contains);
+      
+      // Add hover effect
+      this.startButton.on('pointerover', () => {
+        buttonBg.clear();
+        buttonBg.fillStyle(0x00cc00, 0.9);
+        buttonBg.fillRoundedRect(300, 500, 200, 60, 15);
+        buttonBg.lineStyle(4, 0xffffff, 1);
+        buttonBg.strokeRoundedRect(300, 500, 200, 60, 15);
+        startText.setScale(1.05);
+      });
+      
+      this.startButton.on('pointerout', () => {
+        buttonBg.clear();
+        buttonBg.fillStyle(0x00ff00, 0.8);
+        buttonBg.fillRoundedRect(300, 500, 200, 60, 15);
+        buttonBg.lineStyle(4, 0xffffff, 1);
+        buttonBg.strokeRoundedRect(300, 500, 200, 60, 15);
+        startText.setScale(1);
+      });
+      
+      // Add click effect
+      this.startButton.on('pointerdown', () => {
+        buttonBg.clear();
+        buttonBg.fillStyle(0x009900, 1);
+        buttonBg.fillRoundedRect(300, 500, 200, 60, 15);
+        buttonBg.lineStyle(4, 0xffffff, 1);
+        buttonBg.strokeRoundedRect(300, 500, 200, 60, 15);
+        startText.setScale(0.95);
+      });
+      
+      // Add click handler
+      this.startButton.on('pointerup', () => {
+        this.startBattle();
+      });
+      
+      // If auto-start or auto-mode is enabled, start a countdown
+      if (this.autoStart || this.autoMode) {
+        // Create countdown text
+        this.countdownText = this.add.text(400, 460, '', {
+          fontSize: '32px',
+          fill: '#ffffff',
+          fontStyle: 'bold',
+          stroke: '#000',
+          strokeThickness: 4
+        }).setOrigin(0.5);
+        
+        // Calculate countdown duration based on preparationDuration
+        const countdownDuration = this.preparationDuration / 1000; // Convert to seconds
+        let countdown = countdownDuration;
+        
+        // Update countdown every second
+        this.countdownTimer = this.time.addEvent({
+          delay: 1000,
+          callback: () => {
+            countdown--;
+            this.countdownText.setText(`Starting in: ${countdown}`);
+            
+            // When countdown reaches 0, start the battle
+            if (countdown <= 0) {
+              this.startBattle();
+            }
+          },
+          callbackScope: this,
+          repeat: countdownDuration - 1
+        });
+      }
     } catch (error) {
       console.error('Error in createStartButton:', error);
     }
@@ -427,29 +496,39 @@ class PreparationScene extends Phaser.Scene {
   
   startBattle() {
     try {
-      // Stop preparation background music
+      // Stop the countdown timer if it exists
+      if (this.countdownTimer) {
+        this.countdownTimer.remove();
+      }
+      
+      // Stop background music
       if (this.backgroundMusic) {
         this.backgroundMusic.stop();
       }
       
-      // Stop all tweens before transitioning
-      this.tweens.killAll();
+      console.log(`Starting battle: ${this.fighter1Stats.name} vs ${this.fighter2Stats.name}, Arena: ${this.currentArena}`);
       
-      // Reset fighter positions and scales if they exist
-      if (this.fighter1 && this.fighter1.sprite) {
-        this.fighter1.sprite.setScale(this.fighter1.sprite.scaleX / 1.1);
-      }
+      // Add a flash effect
+      const flash = this.add.rectangle(0, 0, 800, 600, 0xffffff);
+      flash.setOrigin(0);
+      flash.setAlpha(0);
       
-      if (this.fighter2 && this.fighter2.sprite) {
-        this.fighter2.sprite.setScale(this.fighter2.sprite.scaleX / 1.1);
-      }
-      
-      // Start battle scene
-      this.scene.start('BattleScene', {
-        roundNumber: this.roundNumber,
-        fighter1Stats: this.fighter1Stats,
-        fighter2Stats: this.fighter2Stats,
-        arenaNumber: this.currentArena
+      // Flash animation
+      this.tweens.add({
+        targets: flash,
+        alpha: { from: 0, to: 1 },
+        duration: 100,
+        yoyo: true,
+        onComplete: () => {
+          // Start the battle scene
+          this.scene.start('BattleScene', {
+            roundNumber: this.roundNumber,
+            fighter1Stats: this.fighter1Stats,
+            fighter2Stats: this.fighter2Stats,
+            arenaNumber: this.currentArena,
+            autoMode: this.autoMode
+          });
+        }
       });
     } catch (error) {
       console.error('Error in startBattle:', error);
