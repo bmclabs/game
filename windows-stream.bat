@@ -26,7 +26,7 @@ set FRAMERATE=30
 set BITRATE=4500k
 set MAXRATE=4500k
 set BUFSIZE=9000k
-set STREAM_URL=rtmp://live.twitch.tv/app/live_1277047725_EBFv9IZxad5LdYNDHgWqnVDSflI8J9
+set STREAM_URL=rtmp://live.restream.io/live/re_9333420_event43a04f6991e84d6eb1661fb590e6dab0
 set GAME_URL=http://localhost:8080
 
 REM Kill any existing processes

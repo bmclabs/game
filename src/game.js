@@ -1,5 +1,5 @@
 const config = {
-    type: Phaser.CANVAS,
+    type: Phaser.CANVAS, // Paksa menggunakan CANVAS renderer
     parent: 'renderDiv',
     scale: {
         mode: Phaser.Scale.FIT,
@@ -7,6 +7,7 @@ const config = {
         width: 800,
         height: 600
     },
+    backgroundColor: '#333333', // Tambahkan background color
     physics: {
         default: 'arcade',
         arcade: {
@@ -58,6 +59,11 @@ window.addEventListener('load', () => {
             setInterval(() => {
                 // The scenes will handle their own transitions
                 console.log('Match cycle check...');
+                
+                // Force renderer update
+                if (game && game.renderer) {
+                    game.renderer.resize(800, 600);
+                }
             }, 5000);
         }
     }, 2000); // Wait 2 seconds before starting
@@ -139,4 +145,4 @@ setInterval(() => {
         game.renderer.resize(800, 600);
         console.log('Forced renderer update');
     }
-}, 5000);
+}, 3000);

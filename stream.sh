@@ -2,14 +2,14 @@
 
 # Configuration
 DISPLAY_NUM=:99
-SCREEN_WIDTH=${WIDTH:-800}
-SCREEN_HEIGHT=${HEIGHT:-600}
+SCREEN_WIDTH=${WIDTH:-1280}
+SCREEN_HEIGHT=${HEIGHT:-720}
 SCREEN_DEPTH=24
 FRAMERATE=${FRAMERATE:-30}
 BITRATE=${BITRATE:-4500k}
 MAXRATE=${MAXRATE:-4500k}
 BUFSIZE=${BUFSIZE:-9000k}
-STREAM_URL=${STREAM_URL:-"rtmp://live.twitch.tv/app/live_1277047725_EBFv9IZxad5LdYNDHgWqnVDSflI8J9"}
+STREAM_URL=${STREAM_URL:-"rtmp://live.restream.io/live/re_9333420_event43a04f6991e84d6eb1661fb590e6dab0"}
 GAME_URL="http://localhost:8080"  # Adjust to your local server
 
 # Kill any existing Xvfb or FFmpeg processes
@@ -100,7 +100,7 @@ echo "Started ${BROWSER} in headless mode"
 
 # Give browser more time to load the game completely
 echo "Waiting for game to load (30 seconds)..."
-sleep 30
+sleep 45
 
 # Take a screenshot to verify the game is visible
 echo "Taking a screenshot to verify game is visible..."

@@ -15,22 +15,28 @@ const CONFIG = {
   screenWidth: 800,
   screenHeight: 600,
   frameRate: 30,
-  videoBitrate: '2500k',
+  videoBitrate: '4500k',
   audioBitrate: '128k',
   keyframeInterval: 60, // 2 seconds at 30fps
   preset: 'veryfast',
   platforms: [
     {
-      name: 'YouTube',
+      name: 'Restream',
       enabled: true,
+      rtmpUrl: 'rtmp://live.restream.io/live',
+      streamKey: 're_9333420_event43a04f6991e84d6eb1661fb590e6dab0' // Restream.io stream key
+    },
+    {
+      name: 'YouTube',
+      enabled: false,
       rtmpUrl: 'rtmp://a.rtmp.youtube.com/live2',
       streamKey: 'YOUR_YOUTUBE_STREAM_KEY' // Replace with your actual stream key
     },
     {
       name: 'Twitch',
-      enabled: true,
+      enabled: false,
       rtmpUrl: 'rtmp://live.twitch.tv/app',
-      streamKey: 'live_1277047725_EBFv9IZxad5LdYNDHgWqnVDSflI8J9' // Replace with your actual stream key
+      streamKey: 'YOUR_TWITCH_STREAM_KEY' // Replace with your actual stream key
     },
     {
       name: 'Facebook',

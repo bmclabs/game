@@ -69,7 +69,7 @@ COPY . /app
 
 # Set up environment variables
 ENV DISPLAY=:99
-ENV STREAM_URL="rtmp://live.twitch.tv/app/live_1277047725_EBFv9IZxad5LdYNDHgWqnVDSflI8J9"
+ENV STREAM_URL="rtmp://live.restream.io/live/re_9333420_event43a04f6991e84d6eb1661fb590e6dab0"
 ENV BITRATE=4500k
 ENV MAXRATE=4500k
 ENV BUFSIZE=9000k
