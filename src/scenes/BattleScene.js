@@ -1,6 +1,16 @@
 class BattleScene extends Phaser.Scene {
   constructor() {
     super({ key: 'BattleScene' });
+    this.resultSent = false; // Flag to track if the result has been sent
+    this.modeUpdated = false;
+    
+    // Add tracking for round scores
+    this.fighter1Score = 0;
+    this.fighter2Score = 0;
+    this.roundsToWin = 2; // Need 2 wins to win the match
+    
+    // Flag to prevent multiple calls to startNewRound
+    this.isStartingNewRound = false;
   }
 
   preload() {
@@ -23,7 +33,7 @@ class BattleScene extends Phaser.Scene {
       CHARACTERS.forEach(char => {
         const spriteName = char.name.toLowerCase();
         if (spriteName !== 'pepe' && spriteName !== 'trump' && !this.textures.exists(spriteName)) {
-          this.load.image(spriteName, `assets/characters/${spriteName}.png`);
+          this.load.image(spriteName, `assets/fighters/${spriteName}.png`);
         }
       });
 
@@ -63,27 +73,40 @@ class BattleScene extends Phaser.Scene {
   }
 
   init(data) {
-    // Store round number
-    this.roundNumber = data?.roundNumber || 1;
-    
-    // Store fighter stats
-    this.fighter1Stats = data?.fighter1Stats;
-    this.fighter2Stats = data?.fighter2Stats;
-    
-    // Store arena number
-    this.arenaNumber = data?.arenaNumber || 1;
-    
-    // Initialize game state
-    this.isGameActive = false;
-    this.timeLeft = 60; // Set timer to 60 seconds
-    this.lastUpdateTime = 0;
-    this.isTransitioning = false;
-    
-    // Stop any currently playing background music
-    this.sound.stopAll();
-    
-    console.log(`Initializing battle: Round ${this.roundNumber}, Arena ${this.arenaNumber}`);
-    console.log(`Fighter 1: ${this.fighter1Stats?.name}, Fighter 2: ${this.fighter2Stats?.name}`);
+    try {
+      console.log('Initializing BattleScene with data:', data);
+      
+      // Reset flag untuk memulai round baru
+      this.isStartingNewRound = false;
+      
+      // Store round number
+      this.roundNumber = data?.roundNumber || 1;
+      
+      // Store fighter stats
+      this.fighter1Stats = data?.fighter1Stats;
+      this.fighter2Stats = data?.fighter2Stats;
+      
+      // Store arena number
+      this.arenaNumber = data?.arenaNumber || 1;
+      
+      // Get fighter scores from data or use default
+      this.fighter1Score = data?.fighter1Score || 0;
+      this.fighter2Score = data?.fighter2Score || 0;
+      
+      // Initialize game state
+      this.isGameActive = false;
+      this.timeLeft = 60; // Set timer to 60 seconds
+      this.lastUpdateTime = 0;
+      this.isTransitioning = false;
+      
+      // Stop any currently playing background music
+      this.sound.stopAll();
+      
+      console.log(`Initializing battle: Round ${this.roundNumber}, Arena ${this.arenaNumber}`);
+      console.log(`Fighter 1: ${this.fighter1Stats?.name} (Score: ${this.fighter1Score}), Fighter 2: ${this.fighter2Stats?.name} (Score: ${this.fighter2Score})`);
+    } catch (error) {
+      console.error('Error in init:', error);
+    }
   }
 
   create() {
@@ -129,7 +152,7 @@ class BattleScene extends Phaser.Scene {
       }
       
       // Add round text
-      this.roundText = this.add.text(400, 50, `ROUND ${this.roundNumber}`, {
+      this.roundText = this.add.text(400, 25, `ROUND ${this.roundNumber}`, {
         fontSize: '32px',
         fill: '#fff',
         fontStyle: 'bold',
@@ -148,7 +171,7 @@ class BattleScene extends Phaser.Scene {
       
       // Add round result text
       this.roundResultText = this.add.text(400, 200, '', {
-        fontSize: '48px',
+        fontSize: '36px',
         fill: '#fff',
         fontStyle: 'bold',
         stroke: '#000',
@@ -165,8 +188,8 @@ class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(100).setVisible(false);
       
       // Add timer text
-      this.timeLeft = 99;
-      this.timerText = this.add.text(400, 100, this.timeLeft.toString(), {
+      this.timeLeft = 60;
+      this.timerText = this.add.text(400, 60, this.timeLeft.toString(), {
         fontSize: '36px',
         fill: '#fff',
         fontStyle: 'bold',
@@ -184,6 +207,12 @@ class BattleScene extends Phaser.Scene {
       
       // Start countdown
       this.startCountdown();
+      
+      // Update round indicators based on current scores
+      // Delay sedikit untuk memastikan fighter sudah dibuat sepenuhnya
+      this.time.delayedCall(100, () => {
+        this.updateRoundIndicators();
+      });
     } catch (error) {
       console.error('Error in create:', error);
     }
@@ -511,7 +540,7 @@ class BattleScene extends Phaser.Scene {
   showRoundResult(winner) {
     try {
       // Show round result text
-      const resultText = winner === this.fighter1 ? 'PLAYER 1 WINS ROUND!' : 'PLAYER 2 WINS ROUND!';
+      const resultText = winner === this.fighter1 ? `${winner.stats.name.toUpperCase()} WINS ROUND!` : `${winner.stats.name.toUpperCase()} WINS ROUND!`;
       this.roundResultText.setText(resultText);
       this.roundResultText.setVisible(true);
       
@@ -528,114 +557,102 @@ class BattleScene extends Phaser.Scene {
           });
         }
       }
-
-      // Add scaling animation for result text
-      this.tweens.add({
-        targets: this.roundResultText,
-        scaleX: 1.2,
-        scaleY: 1.2,
-        duration: 500,
-        yoyo: true,
-        repeat: 2
-      });
       
-      console.log(`${winner.stats.name} won round ${this.roundNumber}. Rounds won: ${winner.roundsWon}`);
-
-      // Check if match is over (fighter won 2 rounds)
-      if (winner.roundsWon >= 2) {
-        console.log(`${winner.stats.name} won the match with ${winner.roundsWon} rounds!`);
-        this.showVictoryAnimation(winner);
-      } else {
-        // Start next round after delay
-        console.log(`Starting next round (${this.roundNumber + 1}) after delay`);
-        this.time.delayedCall(3000, () => {
-          this.startNextRound();
-        });
-      }
+      console.log(`${winner.stats.name} won round ${this.roundNumber}. Current score: ${this.fighter1Score}-${this.fighter2Score}`);
+      
+      // Delay sebelum memulai round berikutnya
+      this.time.delayedCall(3000, () => {
+        // Pastikan roundResultText tidak visible lagi
+        this.roundResultText.setVisible(false);
+        
+        // Mulai round baru
+        this.startNewRound();
+      });
     } catch (error) {
-      console.error('Error in showRoundResult:', error);
+      console.error('Error showing round result:', error);
+      // Langsung mulai round berikutnya jika terjadi error
+      this.startNewRound();
     }
   }
 
-  startNextRound() {
+  startNewRound() {
     try {
-      // Increment round number
-      this.roundNumber++;
-      
-      // Update round text
-      this.roundText.setText(`ROUND ${this.roundNumber}`);
-      
-      // Reset fighters
-      this.fighter1.reset();
-      this.fighter2.reset();
-      
-      // Reset fighter positions
-      this.fighter1.sprite.x = 200;
-      this.fighter2.sprite.x = 600;
-      this.fighter1.sprite.y = this.fighter1.groundY;
-      this.fighter2.sprite.y = this.fighter2.groundY;
-      
-      // Ensure fighters are facing each other if they have the setFlipX method
-      if (this.fighter1.sprite.setFlipX && this.fighter2.sprite.setFlipX) {
-        this.fighter1.updateFacing(this.fighter2);
-        this.fighter2.updateFacing(this.fighter1);
+      // Check if already in the process of starting a new round
+      if (this.isStartingNewRound) {
+        console.log('Already starting new round, ignoring duplicate call');
+        return;
       }
       
-      // Reset round result text
-      this.roundResultText.setVisible(false);
+      // Set flag bahwa sedang memulai round baru
+      this.isStartingNewRound = true;
       
-      // Reset timer
-      this.timeLeft = 60;
-      this.timerText.setText(this.timeLeft.toString());
+      console.log('Starting new round...');
       
-      // Start countdown for next round
-      this.startCountdown();
+      // Reset flags untuk round baru
+      this.resultSent = false;
+      this.modeUpdated = false;
+      
+      // Restart the current scene with updated round number and scores
+      this.scene.restart({
+        fighter1Stats: this.fighter1Stats,
+        fighter2Stats: this.fighter2Stats,
+        arenaNumber: this.arenaNumber,
+        roundNumber: this.roundNumber + 1,
+        fighter1Score: this.fighter1Score,
+        fighter2Score: this.fighter2Score
+      });
     } catch (error) {
-      console.error('Error in startNextRound:', error);
+      console.error('Error starting new round:', error);
+      // Reset flag jika terjadi error
+      this.isStartingNewRound = false;
     }
   }
 
   startNewMatch() {
     try {
-      // Stop background music
-      if (this.backgroundMusic) {
-        this.backgroundMusic.stop();
+      console.log('Starting new match...');
+      
+      // Reset flags untuk pertandingan baru
+      this.resultSent = false;
+      this.modeUpdated = false;
+      
+      // Select random fighters for the next match
+      const availableFighters = [...CHARACTERS];
+      
+      // Make sure we have at least two fighters
+      if (availableFighters.length < 2) {
+        console.error('Not enough fighters available');
+        return;
       }
       
-      // Reset round number
-      this.roundNumber = 1;
+      // Select random fighters
+      const fighter1Index = Math.floor(Math.random() * availableFighters.length);
+      const fighter1 = availableFighters[fighter1Index];
       
-      // Reset fighter rounds won
-      if (this.fighter1) {
-        this.fighter1.roundsWon = 0;
-        this.fighter1.resetRounds();
-      }
+      // Remove the first fighter from the array
+      availableFighters.splice(fighter1Index, 1);
       
-      if (this.fighter2) {
-        this.fighter2.roundsWon = 0;
-        this.fighter2.resetRounds();
-      }
+      // Select second fighter
+      const fighter2Index = Math.floor(Math.random() * availableFighters.length);
+      const fighter2 = availableFighters[fighter2Index];
       
-      // Hide victory elements
-      if (this.victoryText) {
-        this.victoryText.destroy();
-      }
+      console.log('Selected new fighters:', fighter1.name, 'vs', fighter2.name);
       
-      // Choose a new arena
-      this.arenaNumber = Math.floor(Math.random() * 6) + 1;
+      // Select random arena
+      const arenaNumber = Math.floor(Math.random() * 6) + 1;
       
-      // Restart the scene
-      this.scene.restart({
-        fighter1Stats: this.fighter1Stats,
-        fighter2Stats: this.fighter2Stats,
-        roundNumber: 1,
-        arenaNumber: this.arenaNumber
+      // Start preparation scene directly without changing mode
+      // (Preparation scene will handle sending next match fighters)
+      this.scene.start('PreparationScene', {
+        roundNumber: 1, // Reset round number for new match
+        fighter1Stats: fighter1,
+        fighter2Stats: fighter2,
+        arenaNumber: arenaNumber,
+        fighter1Score: 0, // Reset scores for new match
+        fighter2Score: 0
       });
     } catch (error) {
-      console.error('Error in startNewMatch:', error);
-      
-      // Try to recover by restarting the scene
-      this.scene.restart();
+      console.error('Error starting new match:', error);
     }
   }
 
@@ -646,42 +663,17 @@ class BattleScene extends Phaser.Scene {
       
       // Hide round result text
       this.roundResultText.setVisible(false);
-      
+
       // Show victory text
-      const victoryText = winner === this.fighter1 ? 'PLAYER 1 VICTORY!' : 'PLAYER 2 VICTORY!';
+      const victoryText = winner === this.fighter1 ? `${winner.stats.name.toUpperCase()} WINS THE MATCH!` : `${winner.stats.name.toUpperCase()} WINS THE MATCH!`;
       this.victoryText = this.add.text(400, 200, victoryText, {
-        fontSize: '48px',
-        fill: '#fff',
+        fontSize: '36px',
+        fill: '#ffff00',
         fontStyle: 'bold',
         stroke: '#000',
         strokeThickness: 6,
         align: 'center'
       }).setOrigin(0.5).setDepth(100);
-      
-      // Add scaling animation for victory text
-      this.tweens.add({
-        targets: this.victoryText,
-        scaleX: 1.2,
-        scaleY: 1.2,
-        duration: 500,
-        yoyo: true,
-        repeat: 3
-      });
-      
-      // Show fighter name and rounds won
-      const fighterNameText = this.add.text(400, 270, `${winner.stats.name} WINS! (${winner.roundsWon}-${winner === this.fighter1 ? this.fighter2.roundsWon : this.fighter1.roundsWon})`, {
-        fontSize: '32px',
-        fill: '#ffff00',
-        fontStyle: 'bold',
-        stroke: '#000',
-        strokeThickness: 4,
-        align: 'center'
-      }).setOrigin(0.5).setDepth(100);
-      
-      // Add glow effect to fighter name
-      if (fighterNameText.preFX) {
-        fighterNameText.preFX.addGlow(0xffff00, 0.5, 0, false, 0.1, 16);
-      }
       
       // Play victory animation for winner
       if (winner.sprite && winner.fighterName) {
@@ -702,7 +694,7 @@ class BattleScene extends Phaser.Scene {
       this.addConfettiEffect();
       
       // Add "NEXT MATCH" text
-      const nextMatchText = this.add.text(400, 500, 'NEXT MATCH STARTING SOON...', {
+      const nextMatchText = this.add.text(400, 470, 'NEXT MATCH STARTING SOON...', {
         fontSize: '24px',
         fill: '#fff',
         backgroundColor: '#444',
@@ -726,62 +718,14 @@ class BattleScene extends Phaser.Scene {
           this.backgroundMusic.stop();
         }
         
-        // Select random fighters and arena for next match
-        const randomFighters = this.selectRandomFighters();
-        const randomArena = Math.floor(Math.random() * 6) + 1;
-        
-        console.log(`Starting new match with random fighters: ${randomFighters.fighter1.name} vs ${randomFighters.fighter2.name}, Arena: ${randomArena}`);
-        
-        // Return to preparation scene with random fighters and arena
-        this.scene.start('PreparationScene', {
-          fighter1: randomFighters.fighter1,
-          fighter2: randomFighters.fighter2,
-          arenaNumber: randomArena,
-          autoStart: true // Automatically start the next match
-        });
+        // Start new match
+        this.startNewMatch();
       });
     } catch (error) {
       console.error('Error in showVictoryAnimation:', error);
       
       // Fallback to preparation scene if there's an error
       this.scene.start('PreparationScene');
-    }
-  }
-  
-  selectRandomFighters() {
-    try {
-      // Get available fighters
-      const availableFighters = [...CHARACTERS];
-      
-      // Make sure we have at least two fighters
-      if (availableFighters.length < 2) {
-        console.error('Not enough fighters available');
-        return {
-          fighter1: CHARACTERS[0],
-          fighter2: CHARACTERS[0]
-        };
-      }
-      
-      // Select random fighters
-      const fighter1Index = Math.floor(Math.random() * availableFighters.length);
-      const fighter1 = availableFighters[fighter1Index];
-      
-      // Remove the first fighter from available fighters
-      availableFighters.splice(fighter1Index, 1);
-      
-      // Select second fighter from remaining fighters
-      const fighter2Index = Math.floor(Math.random() * availableFighters.length);
-      const fighter2 = availableFighters[fighter2Index];
-      
-      return { fighter1, fighter2 };
-    } catch (error) {
-      console.error('Error selecting random fighters:', error);
-      
-      // Fallback to first two fighters
-      return {
-        fighter1: CHARACTERS[0],
-        fighter2: CHARACTERS[1]
-      };
     }
   }
   
@@ -817,47 +761,79 @@ class BattleScene extends Phaser.Scene {
     }
   }
 
-  endRound(winner, isKO) {
+  endRound(winner, isKO = false) {
     try {
-      // Determine loser
-      const loser = winner === this.fighter1 ? this.fighter2 : this.fighter1;
+      // If no winner is provided, it's a draw or forced end
+      if (!winner) {
+        console.log('Round ended without a winner');
+        this.startNewMatch();
+        return;
+      }
       
-      // Send match result to backend
-      gameApiClient.sendMatchResult(winner.stats, loser.stats, isKO)
-        .then(() => {
-          console.log('Match result sent to backend');
-        })
-        .catch(error => {
-          console.error('Error sending match result:', error);
-        });
+      console.log(`Round ended with winner: ${winner.stats.name}, KO: ${isKO}`);
       
-      // Show round result
-      this.showRoundResult(winner);
+      // Stop the game
+      this.isGameActive = false;
       
-      // Disable fighter controls
-      this.controlsEnabled = false;
+      // Update round scores and indicators
+      if (winner === this.fighter1) {
+        this.fighter1Score++;
+        // Update round indicator for fighter 1
+        if (this.fighter1.roundIndicators && this.fighter1.roundIndicators[this.fighter1Score - 1]) {
+          this.fighter1.roundIndicators[this.fighter1Score - 1].setFillStyle(0x00ff00); // Set to green
+        }
+        console.log(`${this.fighter1Stats.name} score increased to ${this.fighter1Score}`);
+      } else {
+        this.fighter2Score++;
+        // Update round indicator for fighter 2
+        if (this.fighter2.roundIndicators && this.fighter2.roundIndicators[this.fighter2Score - 1]) {
+          this.fighter2.roundIndicators[this.fighter2Score - 1].setFillStyle(0x00ff00); // Set to green
+        }
+        console.log(`${this.fighter2Stats.name} score increased to ${this.fighter2Score}`);
+      }
       
-      // Stop the timer
-      this.timerEvent.remove();
+      // Check if a fighter has won the match (reached 2 wins)
+      const matchWinner = this.fighter1Score >= this.roundsToWin ? this.fighter1 : 
+                      this.fighter2Score >= this.roundsToWin ? this.fighter2 : null;
       
-      // Add a delay before starting the next round
-      this.time.delayedCall(5000, () => {
-        // Set game mode back to preparation
-        gameApiClient.updateGameMode('preparation')
+      if (matchWinner) {
+        console.log(`Match winner: ${matchWinner.stats.name} with score ${this.fighter1Score}-${this.fighter2Score}`);
+        
+        // Check if match result has already been sent
+        if (this.resultSent) {
+          console.log('Match result already sent, skipping duplicate send');
+          this.showVictoryAnimation(matchWinner);
+          return;
+        }
+        
+        // Set flag bahwa hasil sudah dikirim
+        this.resultSent = true;
+        
+        // Send match result to backend
+        gameApiClient.sendMatchResult(
+          matchWinner === this.fighter1 ? this.fighter1Stats : this.fighter2Stats,
+          isKO
+        )
           .then(() => {
-            console.log('Game mode set back to preparation');
+            console.log('Match result sent to backend');
+            
+            // Show victory animation
+            this.showVictoryAnimation(matchWinner);
           })
           .catch(error => {
-            console.error('Error updating game mode:', error);
+            console.error('Error sending match result:', error);
+            
+            // Still show victory animation and continue
+            this.showVictoryAnimation(matchWinner);
           });
+      } else {
+        // Jika belum ada yang mencapai 2 kemenangan, lanjutkan ke round berikutnya
+        console.log(`Current score: ${this.fighter1Stats.name} ${this.fighter1Score} - ${this.fighter2Score} ${this.fighter2Stats.name}`);
+        console.log('No match winner yet, continuing to next round');
         
-        // Start next round or new match
-        if (this.roundNumber < 3) {
-          this.startNextRound();
-        } else {
-          this.startNewMatch();
-        }
-      });
+        // Tampilkan animasi round winner dan lanjutkan ke round berikutnya
+        this.showRoundResult(winner);
+      }
     } catch (error) {
       console.error('Error ending round:', error);
     }
@@ -911,6 +887,29 @@ class BattleScene extends Phaser.Scene {
       }
     } catch (error) {
       console.error('Error in updateTimer:', error);
+    }
+  }
+
+  // Add function to update round indicators based on scores
+  updateRoundIndicators() {
+    try {
+      console.log('Updating round indicators based on scores');
+      
+      // Update fighter 1 round indicators
+      for (let i = 0; i < this.fighter1Score; i++) {
+        if (this.fighter1.roundIndicators && this.fighter1.roundIndicators[i]) {
+          this.fighter1.roundIndicators[i].setFillStyle(0x00ff00); // Set to green
+        }
+      }
+      
+      // Update fighter 2 round indicators
+      for (let i = 0; i < this.fighter2Score; i++) {
+        if (this.fighter2.roundIndicators && this.fighter2.roundIndicators[i]) {
+          this.fighter2.roundIndicators[i].setFillStyle(0x00ff00); // Set to green
+        }
+      }
+    } catch (error) {
+      console.error('Error updating round indicators:', error);
     }
   }
 }

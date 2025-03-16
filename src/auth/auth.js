@@ -1,5 +1,5 @@
 // Authentication and Game Authorization Module
-const AUTH_API_URL = 'http://localhost:3080/api'; // Backend API URL
+const AUTH_API_URL = API_CONFIG.baseUrl; // Use API_CONFIG from api-config.js
 
 // Utility function to securely hash data using SHA-256
 async function hashData(data) {
@@ -41,11 +41,27 @@ async function generateHMAC(message, key) {
 class SecureSession {
     constructor() {
         this.sessionData = {};
+        // Load any existing data from localStorage
+        try {
+            const savedData = localStorage.getItem('gameSession');
+            if (savedData) {
+                this.sessionData = JSON.parse(savedData);
+                console.log('Loaded session data from localStorage');
+            }
+        } catch (e) {
+            console.error('Error loading session data:', e);
+        }
     }
     
-    // Set session data (stored in memory only, not in localStorage)
+    // Set session data (stored in memory and localStorage)
     set(key, value) {
         this.sessionData[key] = value;
+        // Save to localStorage
+        try {
+            localStorage.setItem('gameSession', JSON.stringify(this.sessionData));
+        } catch (e) {
+            console.error('Error saving session data:', e);
+        }
     }
     
     // Get session data
@@ -56,6 +72,11 @@ class SecureSession {
     // Clear all session data
     clear() {
         this.sessionData = {};
+        try {
+            localStorage.removeItem('gameSession');
+        } catch (e) {
+            console.error('Error clearing session data:', e);
+        }
     }
 }
 
@@ -74,7 +95,7 @@ class AuthClient {
             // Hash the password before sending (additional security layer)
             const hashedPassword = await hashData(password);
             
-            const response = await fetch(`${this.baseUrl}/auth/login`, {
+            const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.login}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -118,7 +139,7 @@ class AuthClient {
             const message = `${timestamp}:${gameAuthKey}`;
             const signature = await generateHMAC(message, gameAuthKey);
             
-            const response = await fetch(`${this.baseUrl}/auth/verify-game-key`, {
+            const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.verifyGameKey}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -160,78 +181,106 @@ const authKeyBtn = document.getElementById('auth-key-btn');
 const loginError = document.getElementById('login-error');
 const authKeyError = document.getElementById('auth-key-error');
 
-// Handle login form submission
-loginBtn.addEventListener('click', async () => {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    
-    // Basic validation
-    if (!username || !password) {
-        loginError.textContent = 'Please enter both username and password';
-        loginError.style.display = 'block';
-        return;
-    }
-    
-    try {
-        // Disable button during login
-        loginBtn.disabled = true;
-        loginBtn.textContent = 'Logging in...';
-        
-        // Call login API
-        await authClient.login(username, password);
-        
-        // Hide login form and show auth key form
-        loginForm.style.display = 'none';
-        authKeyForm.style.display = 'block';
-        
-        // Reset login form
-        loginError.style.display = 'none';
-    } catch (error) {
-        loginError.textContent = 'Invalid username or password';
-        loginError.style.display = 'block';
-    } finally {
-        // Re-enable button
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Login';
-    }
-});
+// Only add event listeners if we're on the auth page (elements exist)
+if (loginBtn) {
+  // Handle login form submission
+  loginBtn.addEventListener('click', async () => {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      
+      // Basic validation
+      if (!username || !password) {
+          loginError.textContent = 'Please enter both username and password';
+          loginError.style.display = 'block';
+          return;
+      }
+      
+      try {
+          // Disable button during login
+          loginBtn.disabled = true;
+          loginBtn.textContent = 'Logging in...';
+          
+          // Call login API
+          await authClient.login(username, password);
+          
+          // Hide login form and show auth key form
+          loginForm.style.display = 'none';
+          authKeyForm.style.display = 'block';
+          
+          // Reset login form
+          loginError.style.display = 'none';
+      } catch (error) {
+          loginError.textContent = 'Invalid username or password';
+          loginError.style.display = 'block';
+      } finally {
+          // Re-enable button
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Login';
+      }
+  });
+}
 
-// Handle auth key form submission
-authKeyBtn.addEventListener('click', async () => {
-    const gameAuthKey = document.getElementById('game-auth-key').value;
-    
-    // Basic validation
-    if (!gameAuthKey) {
-        authKeyError.textContent = 'Please enter a game authentication key';
-        authKeyError.style.display = 'block';
-        return;
-    }
-    
-    try {
-        // Disable button during verification
-        authKeyBtn.disabled = true;
-        authKeyBtn.textContent = 'Verifying...';
-        
-        // Call verify API
-        await authClient.verifyGameAuthKey(gameAuthKey);
-        
-        // Redirect to game with auth token
-        window.location.href = `index.html?token=${encodeURIComponent(session.get('gameSessionToken'))}`;
-    } catch (error) {
-        authKeyError.textContent = 'Invalid game authentication key';
-        authKeyError.style.display = 'block';
-    } finally {
-        // Re-enable button
-        authKeyBtn.disabled = false;
-        authKeyBtn.textContent = 'Verify & Launch Game';
-    }
-});
+if (authKeyBtn) {
+  // Handle auth key form submission
+  authKeyBtn.addEventListener('click', async () => {
+      const gameAuthKey = document.getElementById('game-auth-key').value;
+      
+      // Basic validation
+      if (!gameAuthKey) {
+          authKeyError.textContent = 'Please enter a game authentication key';
+          authKeyError.style.display = 'block';
+          return;
+      }
+      
+      try {
+          // Disable button during verification
+          authKeyBtn.disabled = true;
+          authKeyBtn.textContent = 'Verifying...';
+          
+          // Call verify API
+          const result = await authClient.verifyGameAuthKey(gameAuthKey);
+          console.log('Verification successful, received game session token:', result.gameSessionToken);
+          
+          // Make sure token is stored in session
+          if (result.gameSessionToken) {
+              console.log('Storing gameSessionToken in session:', result.gameSessionToken.substring(0, 10) + '...');
+              session.set('gameSessionToken', result.gameSessionToken);
+          } else {
+              throw new Error('No gameSessionToken received from server');
+          }
+          
+          // Store game auth key in session
+          console.log('Storing gameAuthKey in session:', gameAuthKey.substring(0, 5) + '...');
+          session.set('gameAuthKey', gameAuthKey);
+          
+          // Log session data for debugging
+          console.log('Session data before redirect:');
+          console.log('gameSessionToken:', session.get('gameSessionToken'));
+          console.log('gameAuthKey:', session.get('gameAuthKey'));
+          
+          // Redirect to game with token in URL
+          const redirectUrl = `index.html?token=${encodeURIComponent(result.gameSessionToken)}&gameAuthKey=${encodeURIComponent(gameAuthKey)}`;
+          console.log('Redirecting to:', redirectUrl);
+          window.location.href = redirectUrl;
+      } catch (error) {
+          console.error('Game auth error:', error);
+          authKeyError.textContent = 'Invalid game authentication key';
+          authKeyError.style.display = 'block';
+      } finally {
+          // Re-enable button
+          authKeyBtn.disabled = false;
+          authKeyBtn.textContent = 'Verify & Launch Game';
+      }
+  });
+}
 
 // Check if user is already authenticated (e.g., from a previous session)
 // This is just a placeholder - in a real implementation, you would check with the server
 // We don't use localStorage for security reasons
-window.addEventListener('load', () => {
-    // Always start with the login form in this implementation
-    loginForm.style.display = 'block';
-    authKeyForm.style.display = 'none';
-}); 
+if (loginForm && authKeyForm) {
+  window.addEventListener('load', () => {
+      // Always start with the login form in this implementation
+      loginForm.style.display = 'block';
+      authKeyForm.style.display = 'none';
+  });
+} 

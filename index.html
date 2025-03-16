@@ -1,80 +1,113 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Battle Memecoin Club</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle Memecoin Club Game</title>
     <style>
         body {
             margin: 0;
             padding: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            background: #1a1a1a;
         }
+        
         #renderDiv {
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            width: 800px;
+            height: 600px;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
         }
-        #authError {
-            color: #ff5555;
-            font-family: Arial, sans-serif;
-            font-size: 18px;
-            text-align: center;
-            max-width: 600px;
-            padding: 20px;
-            background: #2a2a2a;
+        
+        #loadingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        #loadingLogo {
+            max-width: 300px;
+            margin-bottom: 20px;
+        }
+        
+        #loadingBar {
+            width: 300px;
+            height: 20px;
+            background-color: #333;
             border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            display: none;
+            overflow: hidden;
+        }
+        
+        #loadingProgress {
+            width: 0%;
+            height: 100%;
+            background-color: #f5a623;
+            transition: width 0.3s ease;
+        }
+        
+        .hidden {
+            display: none !important;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
 </head>
 <body>
-    <div id="renderDiv"></div>
-    <div id="authError">
-        Authentication required. Please <a href="auth.html" style="color: #ffff00;">login</a> to access the game.
+    <div id="loadingScreen">
+        <img id="loadingLogo" src="assets/logo/bmc-logo.gif" alt="Battle Memecoin Club">
+        <div id="loadingBar">
+            <div id="loadingProgress"></div>
+        </div>
     </div>
-
-    <!-- Authentication -->
+    
+    <div id="gameContainer" class="hidden">
+        <div id="renderDiv"></div>
+    </div>
+    
+    <!-- Socket.IO Client -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- Phaser Framework -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    
+    <!-- Configuration -->
+    <script src="src/config/api-config.js"></script>
+    
+    <!-- Authentication Module -->
     <script src="src/auth/auth.js"></script>
     <script src="src/auth/api-client.js"></script>
     
-    <!-- Configuration -->
+    <!-- Socket Client -->
+    <script src="src/socket/socket-client.js"></script>
+    
+    <!-- Utility Functions -->
+    <script src="src/utils/game-integration.js"></script>
+    
+    <!-- Game Characters -->
     <script src="src/config/characters.js"></script>
-
-    <!-- Base Fighter -->
-    <script src="src/characters/Fighter.js"></script>
-    
-    <!-- Generic Fighter System -->
-    <script src="src/characters/FighterFactory.js"></script>
-    <script src="src/characters/GenericFighter.js"></script>
     <script src="src/characters/GenericSkill.js"></script>
+    <script src="src/characters/Fighter.js"></script>
+    <script src="src/characters/GenericFighter.js"></script>
+    <script src="src/characters/FighterFactory.js"></script>
     
-    <!-- Doge Fighter -->
-    <script src="src/characters/doge/skills/DogeSkill1.js"></script>
-    <script src="src/characters/doge/skills/DogeSkill2.js"></script>
-    <script src="src/characters/doge/Doge.js"></script>
-    
-    <!-- Shiba Fighter -->
-    <script src="src/characters/shiba/skills/ShibaSkill1.js"></script>
-    <script src="src/characters/shiba/skills/ShibaSkill2.js"></script>
-    <script src="src/characters/shiba/Shiba.js"></script>
-
-    <!-- Pengu Fighter -->
-    <script src="src/characters/pengu/skills/PenguSkill1.js"></script>
-    <script src="src/characters/pengu/skills/PenguSkill2.js"></script>
-    <script src="src/characters/pengu/Pengu.js"></script>
-
-    <!-- Brett Fighter -->
-    <script src="src/characters/brett/skills/BrettSkill1.js"></script>
-    <script src="src/characters/brett/skills/BrettSkill2.js"></script>
-    <script src="src/characters/brett/Brett.js"></script>
-
-    <!-- Scenes -->
-    <script src="src/scenes/PreparationScene.js"></script>
-    <script src="src/scenes/BattleScene.js"></script>
+    <!-- Game Scenes -->
     <script src="src/scenes/TestFighterScene.js"></script>
     <script src="src/scenes/TestPepeScene.js"></script>
     <script src="src/scenes/TestTrumpScene.js"></script>
@@ -82,41 +115,62 @@
     <script src="src/scenes/TestShibaScene.js"></script>
     <script src="src/scenes/TestPenguScene.js"></script>
     <script src="src/scenes/TestBrettScene.js"></script>
-
-    <!-- Authentication Check -->
+    <script src="src/scenes/PreparationScene.js"></script>
+    <script src="src/scenes/BattleScene.js"></script>
+    
+    <!-- Main Game -->
+    <script src="src/game.js"></script>
+    
     <script>
-        // Check if the user is authenticated
-        function checkAuthentication() {
-            // Get token from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token');
-            
-            // If token exists, store it in session
-            if (token) {
-                session.set('gameSessionToken', token);
-                // Remove token from URL (for security)
-                window.history.replaceState({}, document.title, window.location.pathname);
-                return true;
-            }
-            
-            // Check if we have a game session token
-            const gameSessionToken = session.get('gameSessionToken');
-            
-            if (!gameSessionToken) {
-                // Show auth error and hide game container
-                document.getElementById('renderDiv').style.display = 'none';
-                document.getElementById('authError').style.display = 'block';
-                return false;
-            }
-            
-            return true;
-        }
+        // Simulate loading progress
+        let progress = 0;
+        const loadingProgress = document.getElementById('loadingProgress');
+        const loadingScreen = document.getElementById('loadingScreen');
+        const gameContainer = document.getElementById('gameContainer');
         
-        // Only load the game if authenticated
-        if (checkAuthentication()) {
-            // Main Game
-            document.write('<script src="src/game.js"><\/script>');
-        }
+        const loadingInterval = setInterval(() => {
+            progress += Math.random() * 10;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(loadingInterval);
+                
+                // Check for authentication token in URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const token = urlParams.get('token');
+                const gameAuthKey = urlParams.get('gameAuthKey');
+                
+                // If token exists in URL, store it in session
+                if (token) {
+                    console.log('Token found in URL, storing in session');
+                    session.set('gameSessionToken', token);
+                    
+                    if (gameAuthKey) {
+                        console.log('Game auth key found in URL, storing in session');
+                        session.set('gameAuthKey', gameAuthKey);
+                    }
+                }
+                
+                // Check if we have a token in session
+                const sessionToken = session.get('gameSessionToken');
+                
+                // Log authentication status
+                console.log('Authentication check in index.html:');
+                console.log('- Session token:', sessionToken ? 'Present' : 'Missing');
+                
+                // Only redirect if we don't have a token at all
+                if (!sessionToken) {
+                    console.log('No authentication token found, redirecting to auth.html');
+                    window.location.href = 'auth.html';
+                } else {
+                    // We have authentication, show the game
+                    console.log('Authentication token found, showing game');
+                    loadingScreen.classList.add('hidden');
+                    gameContainer.classList.remove('hidden');
+                }
+            }
+            
+            loadingProgress.style.width = `${progress}%`;
+        }, 200);
     </script>
 </body>
 </html> 

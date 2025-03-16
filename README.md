@@ -1,270 +1,123 @@
-# Battle Memecoin Club - Game Authentication System
+# Battle Memecoin Club Game
 
-This repository contains a Phaser-based game for Battle Memecoin Club with an authentication system to ensure secure access.
+Game untuk Battle Memecoin Club yang terintegrasi dengan backend untuk fitur betting dan statistik fighter berdasarkan data pasar cryptocurrency.
 
-## Authentication System
+## Fitur
 
-The game now includes a comprehensive authentication system with the following features:
+- Autentikasi game dengan backend
+- Integrasi Socket.IO untuk komunikasi real-time
+- Perubahan mode game (preparation, battle, completed)
+- Statistik fighter dinamis berdasarkan data CoinMarketCap
+- Sistem pertarungan dengan fighter berbasis cryptocurrency
+- Integrasi dengan sistem betting
 
-1. **User Authentication**: Users must log in with a username and password.
-2. **Game Authentication Key**: After login, users must provide a game authentication key to verify they are authorized to run the game.
-3. **One-Time Token**: The system uses one-time tokens for authentication to prevent token reuse.
-4. **Signed Requests (HMAC)**: All API requests are signed using HMAC to verify the authenticity of requests.
+## Instalasi
 
-## Setup Instructions
-
-1. Clone the repository
-2. Configure the backend API URL in `src/auth/auth.js` (default is `http://localhost:3080/api`)
-3. Set up the required backend endpoints (see API Endpoints section below)
-4. Open `auth.html` in a browser to start the authentication flow
-
-## How It Works
-
-1. Users access `auth.html` and log in with their credentials
-2. After successful login, they are prompted to enter a game authentication key
-3. The key is verified with the backend, and a one-time token is generated
-4. The user is redirected to the game with the token
-5. The game uses the token for all subsequent API calls
-6. All API requests are signed using HMAC with the game authentication key
-
-## API Endpoints
-
-The following endpoints need to be implemented on the backend:
-
-### 1. Login
-
+1. Clone repository
+2. Install dependencies:
 ```
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "username": "developer",
-  "password": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
-}
+npm install
 ```
-
-Note: The password should be hashed with SHA-256 before sending to the server.
-
-Response:
+3. Jalankan server lokal:
 ```
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "userId": "u1"
-}
+npm start
+```
+4. Buka browser dan akses `http://localhost:8080`
+
+## Konfigurasi Backend
+
+Secara default, game ini dikonfigurasi untuk terhubung ke backend lokal di `http://localhost:3080`. Untuk mengubah URL backend:
+
+1. Buka file `src/config/api-config.js`
+2. Ubah nilai `baseUrl` sesuai dengan URL backend yang digunakan
+3. Jika menggunakan URL yang berbeda untuk pengembangan lokal, sesuaikan kondisi override di bagian bawah file
+
+### Menjalankan Backend Lokal
+
+Untuk pengembangan lokal, Anda perlu menjalankan server backend:
+
+1. Clone repository backend dari [https://github.com/battlecoin-club/backend](https://github.com/battlecoin-club/backend)
+2. Install dependencies:
+```
+npm install
+```
+3. Jalankan server:
+```
+npm run dev
 ```
 
-### 2. Verify Game Authentication Key
+Server backend akan berjalan di `http://localhost:3080`.
 
+### Menggunakan Mock Server
+
+Jika Anda tidak memiliki akses ke repository backend, Anda dapat menggunakan mock server yang disediakan:
+
+1. Install dependencies:
 ```
-POST /api/auth/verify-game-key
-Content-Type: application/json
-Authorization: Bearer {auth_token}
-
-{
-  "gameAuthKey": "game_auth_key_for_testing_123456789",
-  "timestamp": "1620000000000",
-  "signature": "calculated_hmac_signature"
-}
+npm install express cors socket.io
 ```
-
-To calculate the signature:
-```javascript
-const timestamp = Date.now().toString();
-const gameAuthKey = "game_auth_key_for_testing_123456789";
-const message = `${timestamp}:${gameAuthKey}`;
-const signature = await generateHMAC(message, gameAuthKey);
+2. Jalankan mock server:
+```
+npm run mock-server
 ```
 
-Response:
-```
-{
-  "gameSessionToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
+Mock server akan berjalan di `http://localhost:3080` dan menyediakan endpoint API yang diperlukan untuk pengembangan.
 
-### 3. Update Game Mode
+## Integrasi Backend
 
-```
-POST /api/game/mode
-Content-Type: application/json
-Authorization: Bearer {game_session_token}
-X-Timestamp: {timestamp}
-X-Request-ID: {request_id}
-X-Signature: {signature}
+Game ini terintegrasi dengan backend Battle Memecoin Club melalui:
 
-{
-  "mode": "preparation"
-}
-```
+1. **Autentikasi**: Login dan verifikasi game auth key
+2. **Socket.IO**: Komunikasi real-time untuk update statistik fighter dan hasil pertandingan
+3. **API Endpoints**:
+   - `/api/game/mode`: Update mode game (preparation, battle, completed)
+   - `/api/game/next-match`: Mengirim fighter untuk pertandingan berikutnya
+   - `/api/game/match-result`: Mengirim hasil pertandingan
 
-To calculate the signature:
-```javascript
-const timestamp = Date.now().toString();
-const requestId = "req_" + Math.random().toString(36).substring(2, 15);
-const body = JSON.stringify({ mode: "preparation" });
-const message = `${timestamp}:${requestId}:${body}`;
-const signature = await generateHMAC(message, gameAuthKey);
-```
+## Game Flow
 
-Response:
-```
-{
-  "success": true
-}
-```
+1. **Autentikasi**: Game dimulai dengan autentikasi melalui OBS
+2. **Preparation Mode**: Pemilihan fighter dan arena
+3. **Battle Mode**: Pertarungan antar fighter
+4. **Result**: Pengiriman hasil pertandingan ke backend
 
-### 4. Send Next Match Fighters
+## Struktur Kode
+
+- `src/auth/`: Modul autentikasi
+- `src/socket/`: Implementasi Socket.IO
+- `src/utils/`: Fungsi utilitas untuk integrasi
+- `src/scenes/`: Scene game (PreparationScene, BattleScene)
+- `src/characters/`: Implementasi fighter dan skill
+
+## Testing
+
+Untuk menguji integrasi dengan backend:
 
 ```
-POST /api/game/next-match
-Content-Type: application/json
-Authorization: Bearer {game_session_token}
-X-Timestamp: {timestamp}
-X-Request-ID: {request_id}
-X-Signature: {signature}
-
-{
-  "fighter1": "DOGE",
-  "fighter2": "SHIB",
-  "matchId": "match_1620000000000_abc123"
-}
+npm run test-integration
 ```
 
-Response:
-```
-{
-  "success": true
-}
-```
+Pastikan server backend berjalan di port 3080 sebelum menjalankan test.
 
-### 5. Send Match Result
+## Troubleshooting
 
-```
-POST /api/game/match-result
-Content-Type: application/json
-Authorization: Bearer {game_session_token}
-X-Timestamp: {timestamp}
-X-Request-ID: {request_id}
-X-Signature: {signature}
+### Masalah Koneksi Backend
 
-{
-  "winner": "DOGE",
-  "loser": "SHIB",
-  "isKO": true,
-  "matchId": "match_1620000000000_abc123",
-  "timestamp": 1620000100000
-}
-```
+- **Error ECONNREFUSED**: Server backend tidak berjalan atau tidak dapat diakses
+  - Pastikan server backend berjalan di port 3080
+  - Periksa apakah ada firewall yang memblokir koneksi
+  - Pastikan port yang digunakan tidak digunakan oleh aplikasi lain
 
-Response:
-```
-{
-  "success": true
-}
-```
+- **Error ENOTFOUND**: Host tidak ditemukan
+  - Periksa URL backend di `src/config/api-config.js`
+  - Pastikan DNS dapat meresolve hostname jika menggunakan domain
 
-## Testing with cURL
+### Masalah Autentikasi
 
-### Login
+- Pastikan username dan password benar
+- Pastikan game auth key valid
+- Periksa format signature HMAC
 
-```bash
-curl -X POST http://localhost:3080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "developer",
-    "password": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
-  }'
-```
+## Pengembangan
 
-### Verify Game Authentication Key
-
-```bash
-curl -X POST http://localhost:3080/api/auth/verify-game-key \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {auth_token}" \
-  -d '{
-    "gameAuthKey": "game_auth_key_for_testing_123456789",
-    "timestamp": "1620000000000",
-    "signature": "calculated_hmac_signature"
-  }'
-```
-
-### Update Game Mode
-
-```bash
-curl -X POST http://localhost:3080/api/game/mode \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {game_session_token}" \
-  -H "X-Timestamp: 1620000000000" \
-  -H "X-Request-ID: req_abc123" \
-  -H "X-Signature: calculated_hmac_signature" \
-  -d '{
-    "mode": "preparation"
-  }'
-```
-
-## Creating a New User
-
-To create a new user for game access, follow these steps:
-
-### 1. Add User to Database
-
-Execute the following SQL queries:
-
-```sql
--- Add new user
-INSERT INTO users (id, wallet_address, username, is_admin, created_at, updated_at)
-VALUES (UUID(), 'WALLET_ADDRESS_USER', 'USERNAME', FALSE, NOW(), NOW());
-
--- Get the user ID
-SET @user_id = (SELECT id FROM users WHERE username = 'USERNAME');
-
--- Add credentials (password must be SHA-256 hashed)
-INSERT INTO user_credentials (id, user_id, password_hash, created_at, updated_at)
-VALUES (UUID(), @user_id, 'PASSWORD_HASH', NOW(), NOW());
-
--- Add game authentication key
-INSERT INTO game_auth_keys (id, user_id, auth_key, is_active, created_at, updated_at)
-VALUES (UUID(), @user_id, 'GAME_AUTH_KEY', TRUE, NOW(), NOW());
-```
-
-### 2. Generate Password Hash
-
-Use the following JavaScript code to generate a SHA-256 hash:
-
-```javascript
-const crypto = require('crypto');
-const password = 'your_password';
-const hash = crypto.createHash('sha256').update(password).digest('hex');
-console.log(hash);
-```
-
-### 3. Generate Game Authentication Key
-
-Use the following JavaScript code to generate a random key:
-
-```javascript
-const crypto = require('crypto');
-const gameAuthKey = crypto.randomBytes(32).toString('hex');
-console.log(gameAuthKey);
-```
-
-## Security Considerations
-
-1. All sensitive data is stored in memory only, not in localStorage or cookies
-2. Passwords are hashed before being sent to the server
-3. All API requests are signed using HMAC
-4. Timestamps are used to prevent replay attacks
-5. Request IDs are used to prevent duplicate requests
-6. Game authentication keys are never stored in the browser's history or URL
-
-## OBS Integration
-
-When using this game in OBS with a browser source:
-
-1. First authenticate through the normal browser
-2. Copy the URL with the token from the browser
-3. Use this URL in your OBS browser source
-4. The game will automatically authenticate using the token
-
-This ensures that only authorized OBS instances can access the game, preventing conflicts with unauthorized access. 
+Untuk pengembangan lebih lanjut, pastikan untuk memperbarui endpoint API dan event Socket.IO sesuai dengan perubahan pada backend. 

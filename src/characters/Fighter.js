@@ -153,13 +153,13 @@ class Fighter {
     this.maxLogMessages = 4;
 
     // Create logger container with adjusted position
-    const loggerY = scene.game.config.height - 115; // Moved down more
+    const loggerY = scene.game.config.height - 85; // Moved down more
     const loggerX = isPlayer1 ? 20 : scene.game.config.width - 20;
 
     // Create log background with adjusted height
     this.logBackground = scene.add.rectangle(
       isPlayer1 ? 125 : scene.game.config.width - 125,
-      scene.game.config.height - 70, // Adjusted to match new position
+      scene.game.config.height - 45, // Adjusted to match new position
       250,
       100, // Reduced height to better match log count
       0x000000,

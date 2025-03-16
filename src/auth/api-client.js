@@ -52,23 +52,46 @@ class GameApiClient {
         return await generateHMAC(message, gameAuthKey);
     }
     
+    // Add this function to help with debugging
+    _logApiCall(endpoint, method, payload, headers) {
+        console.log(`API Call: ${method} ${endpoint}`);
+        console.log('Payload:', payload);
+        console.log('Headers:', {
+            ...headers,
+            'Authorization': headers['Authorization'] ? 'Bearer ***' : undefined,
+            'X-Signature': headers['X-Signature'] ? '***' : undefined
+        });
+    }
+    
     // Update game mode (preparation or battle)
     async updateGameMode(mode) {
         try {
-            const payload = { mode };
+            // Get current match ID if not provided
+            const matchId = this._getCurrentMatchId();
+            
+            const payload = { 
+                matchId,
+                mode,
+            };
+            
             const timestamp = Date.now().toString();
             const requestId = this._generateRequestId();
             const signature = await this._signRequest(payload, timestamp, requestId);
             
-            const response = await fetch(`${this.baseUrl}/game/mode`, {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.get('gameSessionToken')}`,
+                'X-Timestamp': timestamp,
+                'X-Request-ID': requestId,
+                'X-Signature': signature
+            };
+            
+            const endpoint = `${this.baseUrl}${API_CONFIG.endpoints.gameMode}`;
+            this._logApiCall(endpoint, 'POST', payload, headers);
+            
+            const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.get('gameSessionToken')}`,
-                    'X-Timestamp': timestamp,
-                    'X-Request-ID': requestId,
-                    'X-Signature': signature
-                },
+                headers,
                 body: JSON.stringify(payload)
             });
             
@@ -84,20 +107,25 @@ class GameApiClient {
     }
     
     // Send fighters for next match (during preparation mode)
-    async sendNextMatchFighters(fighter1, fighter2) {
+    async sendNextMatchFighters(fighter1, fighter2, providedMatchId = null) {
         try {
-            const matchId = this._generateMatchId();
+            // Use provided matchId or generate a new one
+            const matchId = providedMatchId || this._generateMatchId();
+            
+            // Create payload with fighters and matchId
             const payload = {
                 fighter1: fighter1.name,
                 fighter2: fighter2.name,
-                matchId
+                matchId,
             };
             
             const timestamp = Date.now().toString();
             const requestId = this._generateRequestId();
             const signature = await this._signRequest(payload, timestamp, requestId);
             
-            const response = await fetch(`${this.baseUrl}/game/next-match`, {
+            console.log('Sending next match fighters with payload:', payload);
+            
+            const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.nextMatch}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -113,7 +141,26 @@ class GameApiClient {
                 throw new Error(`Failed to send next match fighters: ${response.status}`);
             }
             
-            return await response.json();
+            const responseData = await response.json();
+            
+            // Store the fighter stats received from the backend
+            if (responseData.fighter1Stats && responseData.fighter2Stats) {
+                // Update fighter stats with the ones from the backend
+                Object.assign(fighter1, responseData.fighter1Stats);
+                Object.assign(fighter2, responseData.fighter2Stats);
+                
+                console.log('Updated fighter stats from backend:', {
+                    fighter1: fighter1.name,
+                    fighter1Stats: responseData.fighter1Stats,
+                    fighter2: fighter2.name,
+                    fighter2Stats: responseData.fighter2Stats
+                });
+            }
+            
+            // Save the used matchId
+            session.set('currentMatchId', matchId);
+            
+            return responseData;
         } catch (error) {
             console.error('Error sending next match fighters:', error);
             throw error;
@@ -121,21 +168,21 @@ class GameApiClient {
     }
     
     // Send match result (after battle mode)
-    async sendMatchResult(winner, loser, isKO = false) {
+    async sendMatchResult(winner, isKO = false) {
         try {
+            const matchId = this._getCurrentMatchId();
+            
             const payload = {
+                matchId,
                 winner: winner.name,
-                loser: loser.name,
                 isKO,
-                matchId: this._getCurrentMatchId(),
-                timestamp: Date.now()
             };
             
             const timestamp = Date.now().toString();
             const requestId = this._generateRequestId();
             const signature = await this._signRequest(payload, timestamp, requestId);
             
-            const response = await fetch(`${this.baseUrl}/game/match-result`, {
+            const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.matchResult}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
