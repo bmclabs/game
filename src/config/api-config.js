@@ -4,7 +4,7 @@
 const API_CONFIG = {
   // Base URL for API endpoints
   // Catatan: Ganti dengan URL backend yang sebenarnya saat deployment
-  baseUrl: 'http://localhost:3080',
+  baseUrl: 'https://api.battlememecoin.club',
   
   // API endpoints
   endpoints: {
