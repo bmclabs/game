@@ -25,9 +25,6 @@ class PreparationScene extends Phaser.Scene {
       // Load VS image
       this.load.image('vs', 'assets/preparation/vs.png');
 
-      // Load preparation background
-      this.load.image('prep_bg', 'assets/preparation/bg.png');
-
       // Load preparation background music
       this.load.audio('prep_bgm', 'assets/sounds/preparation/preparation.mp3');
 
@@ -59,6 +56,26 @@ class PreparationScene extends Phaser.Scene {
       if (data?.fighter1Stats && data?.fighter2Stats) {
         this.fighter1Stats = data.fighter1Stats;
         this.fighter2Stats = data.fighter2Stats;
+        console.log(`Fighter stats received: ${this.fighter1Stats.name} vs ${this.fighter2Stats.name}`);
+      } else {
+        console.error('No fighter stats provided to PreparationScene!');
+        // We will handle this in create()
+      }
+      
+      // Set game mode from SearchingMatchScene
+      this.gameMode = data?.gameMode || 'preparation';
+      console.log(`Game mode set to: ${this.gameMode}`);
+      
+      // Set match ID from SearchingMatchScene
+      this.matchId = data?.matchId;
+      if (this.matchId) {
+        console.log(`Using match ID: ${this.matchId}`);
+        // Store matchId in current session for later use
+        if (typeof session !== 'undefined' && session.set) {
+          session.set('currentMatchId', this.matchId);
+        }
+      } else {
+        console.warn('No matchId provided to PreparationScene!');
       }
       
       // Set arena number
@@ -170,28 +187,6 @@ class PreparationScene extends Phaser.Scene {
       if (this.fighter1Stats && this.fighter2Stats) {
         console.log(`Creating fighters: ${this.fighter1Stats.name} vs ${this.fighter2Stats.name}`);
 
-        // Only send next match fighters if not sent before
-        if (!this.fightersSent) {
-          this.fightersSent = true;
-          
-          const matchId = gameApiClient._generateMatchId();
-          // Send next match fighters to backend with preparation status
-          gameApiClient.sendNextMatchFighters(this.fighter1Stats, this.fighter2Stats, matchId)
-          .then(() => {
-            console.log('Next match fighters sent to backend with preparation status');
-            
-            // Update fighter stats display after receiving response from backend
-            this.updateFighterStats();
-          })
-          .catch(error => {
-            console.error('Error sending next match fighters:', error);
-            // Reset flag if error occurs
-            this.fightersSent = false;
-          });
-        } else {
-          console.log('Fighters already sent to backend, skipping duplicate send');
-        }
-        
         // Create fighter 1 display
         this.fighter1 = FighterFactory.createFighter(this, 200, 300, this.fighter1Stats, true);
         if (this.fighter1 && this.fighter1.sprite) {
@@ -271,17 +266,18 @@ class PreparationScene extends Phaser.Scene {
           shadow: { offsetX: 2, offsetY: 2, color: '#000', blur: 5, stroke: true, fill: true }
         }).setOrigin(0.5);
         
-        // Create fighter stats display
-        // this.createFighterStats();
-        
         return;
+      } else {
+        // No fighters available, this is an error
+        console.error('No fighter stats provided to PreparationScene!');
+        
+        // Return to SearchingMatchScene to try again
+        this.scene.start('SearchingMatchScene');
       }
-      
-      // If no fighters are pre-selected, select random ones
-      console.log('No fighters pre-selected, selecting random fighters');
-      this.selectRandomFighters();
     } catch (error) {
       console.error('Error in createFighterSelection:', error);
+      // In case of error, return to SearchingMatchScene
+      this.scene.start('SearchingMatchScene');
     }
   }
   
@@ -350,64 +346,6 @@ class PreparationScene extends Phaser.Scene {
     }
   }
   
-  selectRandomFighters() {
-    try {
-      // Get all available fighters
-      const availableFighters = [...CHARACTERS];
-      
-      // Make sure we have at least two fighters
-      if (availableFighters.length < 2) {
-        console.error('Not enough fighters available');
-        return;
-      }
-      
-      // Select random fighters
-      const fighter1Index = Math.floor(Math.random() * availableFighters.length);
-      const fighter1 = availableFighters[fighter1Index];
-      
-      // Remove the first fighter from the array
-      availableFighters.splice(fighter1Index, 1);
-      
-      // Select second fighter
-      const fighter2Index = Math.floor(Math.random() * availableFighters.length);
-      const fighter2 = availableFighters[fighter2Index];
-      
-      console.log('Selected fighters:', fighter1.name, 'vs', fighter2.name);
-      
-      // Update fighter stats
-      this.fighter1Stats = fighter1;
-      this.fighter2Stats = fighter2;
-
-      // Only send next match fighters if not sent before
-      if (!this.fightersSent) {
-        this.fightersSent = true;
-        
-        const matchId = gameApiClient._generateMatchId();
-        
-        // Send next match fighters to backend with preparation status
-        gameApiClient.sendNextMatchFighters(fighter1, fighter2, matchId)
-          .then(() => {
-            console.log('Next match fighters sent to backend with preparation status');
-            
-            // Update fighter stats display after receiving response from backend
-            this.updateFighterStats();
-          })
-          .catch(error => {
-            console.error('Error sending next match fighters:', error);
-            // Reset flag if error occurs
-            this.fightersSent = false;
-          });
-      } else {
-        console.log('Fighters already sent to backend, skipping duplicate send');
-      }
-      
-      // Recreate fighter selection with new fighters
-      this.createFighterSelection();
-    } catch (error) {
-      console.error('Error selecting random fighters:', error);
-    }
-  }
-
   createArenaSelection() {
     try {
       
@@ -480,59 +418,83 @@ class PreparationScene extends Phaser.Scene {
       // Check if mode update is in progress
       if (this.modeUpdateInProgress) {
         console.log('Mode update already in progress, skipping duplicate call');
-        // Directly start battle scene
-        self.scene.start('BattleScene', {
-          fighter1Stats: self.fighter1Stats,
-          fighter2Stats: self.fighter2Stats,
-          arenaNumber: self.currentArena,
-          roundNumber: self.roundNumber,
-          fighter1Score: self.fighter1Score,
-          fighter2Score: self.fighter2Score
-        });
         return;
       }
       
       // Set flag that mode update is in progress
       this.modeUpdateInProgress = true;
       
-      // Notify backend about mode change to battle
-      console.log('Attempting to update game mode to battle...');
-      gameApiClient.updateGameMode(API_CONFIG.modes.battle)
-        .then(() => {
-          console.log('Game mode successfully set to battle');
-        })
-        .catch(error => {
-          console.error('Error updating game mode:', error);
-        })
-        .finally(() => {
-          // Reset flag
-          self.modeUpdateInProgress = false;
-          
-          // Always continue to battle scene, even if API call fails
-          console.log('Starting battle scene...');
-          self.scene.start('BattleScene', {
-            fighter1Stats: self.fighter1Stats,
-            fighter2Stats: self.fighter2Stats,
-            arenaNumber: self.currentArena,
-            roundNumber: self.roundNumber,
-            fighter1Score: self.fighter1Score,
-            fighter2Score: self.fighter2Score
+      console.log('Starting battle with gameMode:', this.gameMode);
+      
+      // Initialize retry count
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      const attemptModeUpdate = () => {
+        console.log(`Attempting to update game mode to battle (Attempt ${retryCount + 1}/${maxRetries})...`);
+        
+        // Notify backend about mode change to battle
+        gameApiClient.updateGameMode(API_CONFIG.modes.battle)
+          .then(() => {
+            console.log('Game mode successfully set to battle');
+            
+            // Reset flag
+            self.modeUpdateInProgress = false;
+            
+            // Start battle scene
+            console.log('Starting battle scene...');
+            self.scene.start('BattleScene', {
+              fighter1Stats: self.fighter1Stats,
+              fighter2Stats: self.fighter2Stats,
+              arenaNumber: self.currentArena,
+              roundNumber: self.roundNumber,
+              fighter1Score: self.fighter1Score,
+              fighter2Score: self.fighter2Score,
+              matchId: self.matchId // Pass matchId to battle scene
+            });
+          })
+          .catch(error => {
+            console.error('Error updating game mode:', error);
+            
+            retryCount++;
+            
+            if (retryCount < maxRetries) {
+              // Retry after delay
+              self.time.delayedCall(2000, attemptModeUpdate);
+            } else {
+              // Max retries reached, go to emergency fund scene
+              console.log('Max retries reached for mode update, moving to emergency fund scene');
+              self.modeUpdateInProgress = false;
+              self.scene.start('EmergencyFundScene', {
+                fighter1Stats: self.fighter1Stats,
+                fighter2Stats: self.fighter2Stats,
+                arenaNumber: self.currentArena,
+                roundNumber: self.roundNumber,
+                fighter1Score: self.fighter1Score,
+                fighter2Score: self.fighter2Score,
+                matchId: self.matchId
+              });
+            }
           });
-        });
+      };
+      
+      // Start first attempt
+      attemptModeUpdate();
     } catch (error) {
       console.error('Error starting battle:', error);
       
       // Reset flag if error occurs
       this.modeUpdateInProgress = false;
       
-      // If error occurs, still try to start battle scene
-      this.scene.start('BattleScene', {
+      // If error occurs, go to emergency fund scene
+      this.scene.start('EmergencyFundScene', {
         fighter1Stats: this.fighter1Stats,
         fighter2Stats: this.fighter2Stats,
         arenaNumber: this.currentArena,
         roundNumber: this.roundNumber,
         fighter1Score: this.fighter1Score,
-        fighter2Score: this.fighter2Score
+        fighter2Score: this.fighter2Score,
+        matchId: this.matchId
       });
     }
   }

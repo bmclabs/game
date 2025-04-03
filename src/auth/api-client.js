@@ -112,12 +112,14 @@ class GameApiClient {
             // Use provided matchId or generate a new one
             const matchId = providedMatchId || this._generateMatchId();
             
-            // Create payload with fighters and matchId
-            const payload = {
-                fighter1: fighter1.name,
-                fighter2: fighter2.name,
-                matchId,
-            };
+            // Create payload with matchId only if fighters are null
+            const payload = { matchId };
+            
+            // Add fighters to payload if provided
+            if (fighter1 && fighter2) {
+                payload.fighter1 = fighter1.name;
+                payload.fighter2 = fighter2.name;
+            }
             
             const timestamp = Date.now().toString();
             const requestId = this._generateRequestId();
@@ -144,7 +146,7 @@ class GameApiClient {
             const responseData = await response.json();
             
             // Store the fighter stats received from the backend
-            if (responseData.fighter1Stats && responseData.fighter2Stats) {
+            if (fighter1 && fighter2 && responseData.fighter1Stats && responseData.fighter2Stats) {
                 // Update fighter stats with the ones from the backend
                 Object.assign(fighter1, responseData.fighter1Stats);
                 Object.assign(fighter2, responseData.fighter2Stats);

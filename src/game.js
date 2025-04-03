@@ -14,17 +14,7 @@ const config = {
             debug: false
         }
     },
-    scene: [
-        PreparationScene,
-        BattleScene,
-        TestFighterScene,
-        TestPepeScene,
-        TestTrumpScene,
-        TestDogeScene,
-        TestShibaScene,
-        TestPenguScene,
-        TestBrettScene
-    ]
+    scene: []
 };
 
 // Initialize the game when the window loads
@@ -180,14 +170,23 @@ window.addEventListener('load', () => {
         console.log('Creating game instance');
         const game = new Phaser.Game(config);
 
+        // Register scenes
+        game.scene.add('SearchingMatchScene', SearchingMatchScene);
+        game.scene.add('PreparationScene', PreparationScene);
+        game.scene.add('BattleScene', BattleScene);
+        game.scene.add('PausedScene', PausedScene);
+        game.scene.add('EmergencyFundScene', EmergencyFundScene);
+        game.scene.add('ClaimDistributionScene', ClaimDistributionScene);
+
+        // Start with searching match scene
+        game.scene.start('SearchingMatchScene');
+
         // game.scene.start('PreparationScene', {
         //     roundNumber: 1,
         //     fighter1Stats: fighter1,
         //     fighter2Stats: fighter2,
         //     arenaNumber: Math.floor(Math.random() * 6) + 1
         // });
-
-        game.scene.start('PreparationScene')
 
         // try {
         //     // Generate a unique match ID for this game session

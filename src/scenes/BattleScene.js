@@ -76,36 +76,42 @@ class BattleScene extends Phaser.Scene {
     try {
       console.log('Initializing BattleScene with data:', data);
       
-      // Reset flag untuk memulai round baru
-      this.isStartingNewRound = false;
-      
-      // Store round number
-      this.roundNumber = data?.roundNumber || 1;
-      
-      // Store fighter stats
-      this.fighter1Stats = data?.fighter1Stats;
-      this.fighter2Stats = data?.fighter2Stats;
-      
-      // Store arena number
-      this.arenaNumber = data?.arenaNumber || 1;
-      
-      // Get fighter scores from data or use default
+      // Initialize fighter scores
       this.fighter1Score = data?.fighter1Score || 0;
       this.fighter2Score = data?.fighter2Score || 0;
       
-      // Initialize game state
+      // Initialize round number
+      this.roundNumber = data?.roundNumber || 1;
+      
+      // Initialize arena number
+      this.arenaNumber = data?.arenaNumber || 1;
+      
+      // Set fighter stats if provided
+      if (data?.fighter1Stats && data?.fighter2Stats) {
+        this.fighter1Stats = data.fighter1Stats;
+        this.fighter2Stats = data.fighter2Stats;
+      }
+      
+      // Set matchId if provided
+      this.matchId = data?.matchId;
+      if (this.matchId) {
+        console.log(`Using match ID: ${this.matchId}`);
+        // Store matchId in current session for later use
+        if (typeof session !== 'undefined' && session.set) {
+          session.set('currentMatchId', this.matchId);
+        }
+      }
+      
+      // Initialize flags
+      this.isPaused = false;
       this.isGameActive = false;
-      this.timeLeft = 60; // Set timer to 60 seconds
-      this.lastUpdateTime = 0;
-      this.isTransitioning = false;
+      this.isStartingNewRound = false;
+      this.isModeUpdated = false;
+      this.resultSent = false;
       
-      // Stop any currently playing background music
-      this.sound.stopAll();
-      
-      console.log(`Initializing battle: Round ${this.roundNumber}, Arena ${this.arenaNumber}`);
-      console.log(`Fighter 1: ${this.fighter1Stats?.name} (Score: ${this.fighter1Score}), Fighter 2: ${this.fighter2Stats?.name} (Score: ${this.fighter2Score})`);
+      console.log(`Battle initialized with scores: ${this.fighter1Score}-${this.fighter2Score}, round: ${this.roundNumber}`);
     } catch (error) {
-      console.error('Error in init:', error);
+      console.error('Error initializing BattleScene:', error);
     }
   }
 
@@ -693,8 +699,8 @@ class BattleScene extends Phaser.Scene {
       // Add confetti effect
       this.addConfettiEffect();
       
-      // Add "NEXT MATCH" text
-      const nextMatchText = this.add.text(400, 470, 'NEXT MATCH STARTING SOON...', {
+      // Add "CLAIMING REWARDS" text instead of "NEXT MATCH"
+      const claimText = this.add.text(400, 470, 'CLAIMING REWARDS SOON...', {
         fontSize: '24px',
         fill: '#fff',
         backgroundColor: '#444',
@@ -702,30 +708,19 @@ class BattleScene extends Phaser.Scene {
         borderRadius: 8
       }).setOrigin(0.5).setDepth(100);
       
-      // Add pulsing effect to next match text
+      // Add pulsing effect to claim text
       this.tweens.add({
-        targets: nextMatchText,
+        targets: claimText,
         alpha: 0.5,
         duration: 800,
         yoyo: true,
         repeat: -1
       });
       
-      // Automatically return to preparation scene after delay
-      this.time.delayedCall(5000, () => {
-        // Stop background music
-        if (this.backgroundMusic) {
-          this.backgroundMusic.stop();
-        }
-        
-        // Start new match
-        this.startNewMatch();
-      });
+      // Note: We don't auto-transition here anymore as the endRound method 
+      // will handle the transition to ClaimDistributionScene after a delay
     } catch (error) {
-      console.error('Error in showVictoryAnimation:', error);
-      
-      // Fallback to preparation scene if there's an error
-      this.scene.start('PreparationScene');
+      console.error('Error showing victory animation:', error);
     }
   }
   
@@ -799,33 +794,28 @@ class BattleScene extends Phaser.Scene {
       if (matchWinner) {
         console.log(`Match winner: ${matchWinner.stats.name} with score ${this.fighter1Score}-${this.fighter2Score}`);
         
-        // Check if match result has already been sent
-        if (this.resultSent) {
-          console.log('Match result already sent, skipping duplicate send');
-          this.showVictoryAnimation(matchWinner);
-          return;
-        }
+        // Show victory animation first
+        this.showVictoryAnimation(matchWinner);
         
-        // Set flag bahwa hasil sudah dikirim
-        this.resultSent = true;
-        
-        // Send match result to backend
-        gameApiClient.sendMatchResult(
-          matchWinner === this.fighter1 ? this.fighter1Stats : this.fighter2Stats,
-          isKO
-        )
-          .then(() => {
-            console.log('Match result sent to backend');
-            
-            // Show victory animation
-            this.showVictoryAnimation(matchWinner);
-          })
-          .catch(error => {
-            console.error('Error sending match result:', error);
-            
-            // Still show victory animation and continue
-            this.showVictoryAnimation(matchWinner);
+        // Then go to claim distribution scene after a delay
+        this.time.delayedCall(5000, () => {
+          // Stop background music
+          if (this.backgroundMusic) {
+            this.backgroundMusic.stop();
+          }
+          
+          // Get matchId from data if available, or from session
+          const matchId = this.matchId || gameApiClient._getCurrentMatchId();
+          
+          // Start claim distribution scene
+          this.scene.start('ClaimDistributionScene', {
+            winner: matchWinner,
+            isKO: isKO,
+            matchId: matchId
           });
+        });
+        
+        return;
       } else {
         // Jika belum ada yang mencapai 2 kemenangan, lanjutkan ke round berikutnya
         console.log(`Current score: ${this.fighter1Stats.name} ${this.fighter1Score} - ${this.fighter2Score} ${this.fighter2Stats.name}`);
