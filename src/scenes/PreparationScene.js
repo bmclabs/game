@@ -101,7 +101,7 @@ class PreparationScene extends Phaser.Scene {
       this.background.setDepth(-1);
 
       // Instead of a start button, add a countdown text that will automatically start the battle
-      const countdownText = this.add.text(400, 50, 'MATCH STARTING IN 15...', { // Moved down from 550 to 580
+      const countdownText = this.add.text(400, 50, 'MATCH STARTING IN 240...', { // Moved down from 550 to 580
         fontSize: '42px',
         fill: '#fff',
         fontStyle: 'bold',
@@ -111,7 +111,7 @@ class PreparationScene extends Phaser.Scene {
       }).setOrigin(0.5);
       
       // Start countdown
-      let countdown = 15;
+      let countdown = 240;
       const countdownInterval = setInterval(() => {
         countdown--;
         if (countdown > 0) {
@@ -465,7 +465,7 @@ class PreparationScene extends Phaser.Scene {
               // Max retries reached, go to emergency fund scene
               console.log('Max retries reached for mode update, moving to emergency fund scene');
               self.modeUpdateInProgress = false;
-              self.scene.start('EmergencyFundScene', {
+              self.scene.start('EmergencyRefundScene', {
                 fighter1Stats: self.fighter1Stats,
                 fighter2Stats: self.fighter2Stats,
                 arenaNumber: self.currentArena,
@@ -487,7 +487,7 @@ class PreparationScene extends Phaser.Scene {
       this.modeUpdateInProgress = false;
       
       // If error occurs, go to emergency fund scene
-      this.scene.start('EmergencyFundScene', {
+      this.scene.start('EmergencyRefundScene', {
         fighter1Stats: this.fighter1Stats,
         fighter2Stats: this.fighter2Stats,
         arenaNumber: this.currentArena,

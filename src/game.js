@@ -175,7 +175,7 @@ window.addEventListener('load', () => {
         game.scene.add('PreparationScene', PreparationScene);
         game.scene.add('BattleScene', BattleScene);
         game.scene.add('PausedScene', PausedScene);
-        game.scene.add('EmergencyFundScene', EmergencyFundScene);
+        game.scene.add('EmergencyRefundScene', EmergencyRefundScene);
         game.scene.add('ClaimDistributionScene', ClaimDistributionScene);
 
         // Start with searching match scene

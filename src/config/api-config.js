@@ -8,11 +8,13 @@ const API_CONFIG = {
   
   // API endpoints
   endpoints: {
-    login: '/v1/auth/login',
-    verifyGameKey: '/v1/auth/verify-game-key',
-    gameMode: '/v1/game/mode',
+    login: '/v1/game/auth/login',
+    verifyGameKey: '/v1/game/auth/verify-game-key',
+    updateMode: '/v1/game/update-mode',
     nextMatch: '/v1/game/next-match',
-    matchResult: '/v1/game/match-result'
+    matchResult: '/v1/game/match-result',
+    emergencyRefund: '/v1/game/emergency-refund',
+    setPauseState: '/v1/game/set-pause-state'
   },
   
   // Socket.IO configuration

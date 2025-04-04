@@ -62,52 +62,9 @@ class GameApiClient {
             'X-Signature': headers['X-Signature'] ? '***' : undefined
         });
     }
-    
-    // Update game mode (preparation or battle)
-    async updateGameMode(mode) {
-        try {
-            // Get current match ID if not provided
-            const matchId = this._getCurrentMatchId();
-            
-            const payload = { 
-                matchId,
-                mode,
-            };
-            
-            const timestamp = Date.now().toString();
-            const requestId = this._generateRequestId();
-            const signature = await this._signRequest(payload, timestamp, requestId);
-            
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.get('gameSessionToken')}`,
-                'X-Timestamp': timestamp,
-                'X-Request-ID': requestId,
-                'X-Signature': signature
-            };
-            
-            const endpoint = `${this.baseUrl}${API_CONFIG.endpoints.gameMode}`;
-            this._logApiCall(endpoint, 'POST', payload, headers);
-            
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(payload)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to update game mode: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('Error updating game mode:', error);
-            throw error;
-        }
-    }
-    
+
     // Send fighters for next match (during preparation mode)
-    async sendNextMatchFighters(fighter1, fighter2, providedMatchId = null) {
+    async sendNextMatchFighters(providedMatchId = null, fighter1, fighter2, timeStart, timeEnd) {
         try {
             // Use provided matchId or generate a new one
             const matchId = providedMatchId || this._generateMatchId();
@@ -119,6 +76,11 @@ class GameApiClient {
             if (fighter1 && fighter2) {
                 payload.fighter1 = fighter1.name;
                 payload.fighter2 = fighter2.name;
+            }
+
+            if (timeStart && timeEnd) {
+                payload.timeStart = timeStart;
+                payload.timeEnd = timeEnd;
             }
             
             const timestamp = Date.now().toString();
@@ -169,6 +131,49 @@ class GameApiClient {
         }
     }
     
+    // Update game mode (preparation or battle)
+    async updateGameMode(mode) {
+        try {
+            // Get current match ID if not provided
+            const matchId = this._getCurrentMatchId();
+            
+            const payload = { 
+                matchId,
+                mode,
+            };
+            
+            const timestamp = Date.now().toString();
+            const requestId = this._generateRequestId();
+            const signature = await this._signRequest(payload, timestamp, requestId);
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.get('gameSessionToken')}`,
+                'X-Timestamp': timestamp,
+                'X-Request-ID': requestId,
+                'X-Signature': signature
+            };
+            
+            const endpoint = `${this.baseUrl}${API_CONFIG.endpoints.updateMode}`;
+            this._logApiCall(endpoint, 'POST', payload, headers);
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to update game mode: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Error updating game mode:', error);
+            throw error;
+        }
+    }
+    
     // Send match result (after battle mode)
     async sendMatchResult(winner, isKO = false) {
         try {
@@ -203,6 +208,92 @@ class GameApiClient {
             return await response.json();
         } catch (error) {
             console.error('Error sending match result:', error);
+            throw error;
+        }
+    }
+    
+    // Set game pause state
+    async setGamePauseState(paused) {
+        try {
+            const payload = { paused };
+            
+            const timestamp = Date.now().toString();
+            const requestId = this._generateRequestId();
+            const signature = await this._signRequest(payload, timestamp, requestId);
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.get('gameSessionToken')}`,
+                'X-Timestamp': timestamp,
+                'X-Request-ID': requestId,
+                'X-Signature': signature
+            };
+            
+            const endpoint = `${this.baseUrl}${API_CONFIG.endpoints.setPauseState}`;
+            this._logApiCall(endpoint, 'POST', payload, headers);
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to set game pause state: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Error setting game pause state:', error);
+            throw error;
+        }
+    }
+    
+    // Process emergency refund for the current match
+    async sendEmergencyRefund() {
+        try {
+            // Get current match ID
+            const matchId = this._getCurrentMatchId();
+            
+            if (!matchId) {
+                throw new Error('No match ID available for emergency refund');
+            }
+            
+            const payload = { matchId };
+            
+            const timestamp = Date.now().toString();
+            const requestId = this._generateRequestId();
+            const signature = await this._signRequest(payload, timestamp, requestId);
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.get('gameSessionToken')}`,
+                'X-Timestamp': timestamp,
+                'X-Request-ID': requestId,
+                'X-Signature': signature
+            };
+            
+            const endpoint = `${this.baseUrl}${API_CONFIG.endpoints.emergencyRefund}`;
+            this._logApiCall(endpoint, 'POST', payload, headers);
+            
+            console.log('Processing emergency refund for match:', matchId);
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to process emergency refund: ${response.status}`);
+            }
+            
+            const responseData = await response.json();
+            console.log('Emergency refund processed successfully:', responseData);
+            
+            return responseData;
+        } catch (error) {
+            console.error('Error processing emergency refund:', error);
             throw error;
         }
     }

@@ -9,6 +9,7 @@ class SearchingMatchScene extends Phaser.Scene {
   preload() {
     try {
       this.load.image('prep_bg', 'assets/preparation/background.png');
+      this.load.image('issue_connecting_bg', 'assets/preparation/issue_connecting.png');
     } catch (error) {
       console.error('Error in preload:', error);
     }
@@ -50,6 +51,9 @@ class SearchingMatchScene extends Phaser.Scene {
     console.log(`Searching for match (Attempt ${this.retryCount + 1}/${this.maxRetries})`);
     
     try {
+      // Generate match ID
+      const matchId = gameApiClient._generateMatchId();
+
       // Make sure CHARACTERS is defined
       if (typeof CHARACTERS === 'undefined' || !Array.isArray(CHARACTERS) || CHARACTERS.length < 2) {
         console.error('CHARACTERS is not defined or has less than 2 fighters');
@@ -72,14 +76,20 @@ class SearchingMatchScene extends Phaser.Scene {
       const fighter2 = availableFighters[fighter2Index];
       
       console.log('Selected fighters for next match:', fighter1.name, 'vs', fighter2.name);
+
+      // Calculate time range for historical data (last 24 hours)
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
       
-      // Generate match ID
-      const matchId = gameApiClient._generateMatchId();
+      // Format dates for API
+      const timeStart = yesterday.toISOString();
+      const timeEnd = now.toISOString();
       
       // Call next-match API with selected fighters
-      gameApiClient.sendNextMatchFighters(fighter1, fighter2, matchId)
+      gameApiClient.sendNextMatchFighters(matchId, fighter1, fighter2, timeStart, timeEnd)
         .then(response => {
-          console.log('Next match response:', response);
+          // console.log('Next match response:', response);
           
           // If successful, move to preparation scene
           if (response && response.success === true) {
