@@ -6,6 +6,19 @@ class PausedScene extends Phaser.Scene {
     this.programPauseAttempted = false;
     this.gamePauseAttempted = false;
   }
+  
+  init(data) {
+    // Store matchId if passed from previous scene
+    this.matchId = data?.matchId;
+    
+    if (this.matchId) {
+      console.log('PausedScene initialized with matchId:', this.matchId);
+      // Store matchId in session for API client to use
+      if (typeof session !== 'undefined' && session.set) {
+        session.set('currentMatchId', this.matchId);
+      }
+    }
+  }
 
   create() {
     // Add background
@@ -33,7 +46,7 @@ class PausedScene extends Phaser.Scene {
     if (this.programPauseAttempted) {
       return;
     }
-
+    
     this.programPauseAttempted = true;
     
     // Call the API to set the program to paused
@@ -70,7 +83,6 @@ class PausedScene extends Phaser.Scene {
       })
       .catch(error => {
         console.error('Failed to set game pause state:', error);
-        
       })
   }
 }

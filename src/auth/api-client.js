@@ -215,7 +215,13 @@ class GameApiClient {
     // Set game pause state
     async setGamePauseState(paused) {
         try {
-            const payload = { paused };
+            // Get the current match ID
+            const matchId = this._getCurrentMatchId();
+            
+            const payload = { 
+                paused,
+                matchId 
+            };
             
             const timestamp = Date.now().toString();
             const requestId = this._generateRequestId();
@@ -252,7 +258,13 @@ class GameApiClient {
     // Set program pause state
     async setProgramPauseState(paused) {
         try {
-            const payload = { paused };
+            // Get the current match ID
+            const matchId = this._getCurrentMatchId();
+            
+            const payload = { 
+                paused,
+                matchId 
+            };
             
             const timestamp = Date.now().toString();
             const requestId = this._generateRequestId();
