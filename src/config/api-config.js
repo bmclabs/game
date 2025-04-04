@@ -15,7 +15,8 @@ const API_CONFIG = {
     nextMatch: '/v1/game/next-match',
     matchResult: '/v1/game/match-result',
     emergencyRefund: '/v1/game/emergency-refund',
-    setPauseState: '/v1/game/set-pause-state'
+    setProgramPauseState: '/v1/game/set-program-pause-state',
+    setGamePauseState: '/v1/game/set-game-pause-state'
   },
   
   // Socket.IO configuration

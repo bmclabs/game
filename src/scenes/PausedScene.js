@@ -1,9 +1,10 @@
 class PausedScene extends Phaser.Scene {
   constructor() {
     super({ key: 'PausedScene' });
-    this.pauseStateSet = false;
-    this.retryCount = 0;
-    this.maxRetries = 1;
+    this.programPauseSet = false;
+    this.gamePauseSet = false;
+    this.programPauseAttempted = false;
+    this.gamePauseAttempted = false;
   }
 
   create() {
@@ -22,40 +23,55 @@ class PausedScene extends Phaser.Scene {
       align: 'center'
     }).setOrigin(0.5);
     
-    // Set the game pause state
-    this.setPauseState();
+    // Start pause sequence
+    this.setProgramPauseState();
   }
   
-  // Set the game pause state
-  setPauseState() {
-    // Don't attempt to set pause state again if already done
-    if (this.pauseStateSet) {
+  // Set the program pause state first
+  setProgramPauseState() {
+    // Don't attempt again if already attempted
+    if (this.programPauseAttempted) {
       return;
     }
+
+    this.programPauseAttempted = true;
+    
+    // Call the API to set the program to paused
+    gameApiClient.setProgramPauseState(true)
+      .then(response => {
+        console.log('Program pause state set successfully:', response);
+        this.programPauseSet = true;
+      })
+      .catch(error => {
+        console.error('Failed to set program pause state:', error);
+      })
+      .finally(() => {
+        // Move to setting game pause state regardless of success/failure
+        this.time.delayedCall(1000, () => {
+          this.setGamePauseState();
+        });
+      });
+  }
+  
+  // Set the game pause state after program pause
+  setGamePauseState() {
+    // Don't attempt again if already attempted
+    if (this.gamePauseAttempted) {
+      return;
+    }
+    
+    this.gamePauseAttempted = true;
     
     // Call the API to set the game to paused
     gameApiClient.setGamePauseState(true)
       .then(response => {
         console.log('Game pause state set successfully:', response);
-        this.pauseStateSet = true;
+        this.gamePauseSet = true;
       })
       .catch(error => {
         console.error('Failed to set game pause state:', error);
         
-        this.retryCount++;
-        
-        // Only retry if we haven't reached max retries
-        if (this.retryCount < this.maxRetries) {
-          console.log(`Retry attempt ${this.retryCount}/${this.maxRetries}`);
-          // Retry after 5 seconds
-          this.time.delayedCall(5000, () => {
-            this.pauseStateSet = false;
-            this.setPauseState();
-          });
-        } else {
-          console.log('Max retries reached, not attempting to set pause state again');
-        }
-      });
+      })
   }
 }
 

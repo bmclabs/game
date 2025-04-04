@@ -229,7 +229,7 @@ class GameApiClient {
                 'X-Signature': signature
             };
             
-            const endpoint = `${this.baseUrl}${API_CONFIG.endpoints.setPauseState}`;
+            const endpoint = `${this.baseUrl}${API_CONFIG.endpoints.setGamePauseState}`;
             this._logApiCall(endpoint, 'POST', payload, headers);
             
             const response = await fetch(endpoint, {
@@ -245,6 +245,43 @@ class GameApiClient {
             return await response.json();
         } catch (error) {
             console.error('Error setting game pause state:', error);
+            throw error;
+        }
+    }
+    
+    // Set program pause state
+    async setProgramPauseState(paused) {
+        try {
+            const payload = { paused };
+            
+            const timestamp = Date.now().toString();
+            const requestId = this._generateRequestId();
+            const signature = await this._signRequest(payload, timestamp, requestId);
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.get('gameSessionToken')}`,
+                'X-Timestamp': timestamp,
+                'X-Request-ID': requestId,
+                'X-Signature': signature
+            };
+            
+            const endpoint = `${this.baseUrl}${API_CONFIG.endpoints.setProgramPauseState}`;
+            this._logApiCall(endpoint, 'POST', payload, headers);
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to set program pause state: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Error setting program pause state:', error);
             throw error;
         }
     }
