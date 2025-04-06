@@ -3,9 +3,7 @@
 
 const API_CONFIG = {
   // Base URL for API endpoints
-  // Catatan: Ganti dengan URL backend yang sebenarnya saat deployment
-  // baseUrl: 'https://api.battlememecoin.club',
-  baseUrl: 'https://8cdf-31-171-130-74.ngrok-free.app',
+  baseUrl: 'https://api.battlememecoin.club',
   
   // API endpoints
   endpoints: {

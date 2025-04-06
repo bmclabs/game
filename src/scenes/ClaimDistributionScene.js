@@ -4,6 +4,7 @@ class ClaimDistributionScene extends Phaser.Scene {
     this.resultSent = false;
     this.retryCount = 0;
     this.maxRetries = 3;
+    this.isTransitioning = false; // Flag to prevent multiple transitions
   }
 
   init(data) {
@@ -11,6 +12,17 @@ class ClaimDistributionScene extends Phaser.Scene {
     this.winner = data.winner;
     this.isKO = data.isKO || false;
     this.matchId = data.matchId;
+    
+    // Reset state variables when scene is initialized
+    this.resultSent = false;
+    this.retryCount = 0;
+    this.isTransitioning = false;
+    
+    // Store matchId in session to ensure it's available for API calls
+    if (this.matchId && typeof session !== 'undefined' && session.set) {
+      session.set('currentMatchId', this.matchId);
+      console.log('Stored matchId in session:', this.matchId);
+    }
   }
 
   create() {
@@ -57,24 +69,37 @@ class ClaimDistributionScene extends Phaser.Scene {
       repeat: -1
     });
 
-    // Only send match result if it hasn't been sent before
-    if (!this.resultSent) {
-      this.sendMatchResult();
-    } else {
-      console.log('Match result already sent, skipping duplicate send');
-      this.processingText.setText('Rewards already claimed!');
-      
-      // Go to next match after a short delay
-      this.time.delayedCall(2000, () => {
-        this.scene.start('SearchingMatchScene');
-      });
-    }
+    // Add debug info at the bottom of the screen
+    this.debugText = this.add.text(400, 550, '', {
+      fontSize: '14px',
+      fill: '#aaaaaa',
+      align: 'center'
+    }).setOrigin(0.5);
+    this.updateDebugText();
+
+    // Add a small delay before sending the match result to ensure everything is ready
+    this.time.delayedCall(500, () => {
+      // Only send match result if it hasn't been sent before
+      if (!this.resultSent) {
+        this.sendMatchResult();
+      } else {
+        console.log('Match result already sent, skipping duplicate send');
+        this.processingText.setText('Rewards already claimed!');
+        
+        // Go to next match after a short delay
+        this.transitionToNextScene();
+      }
+    });
+  }
+
+  updateDebugText() {
+    this.debugText.setText(`Status: ${this.resultSent ? 'Sent' : 'Pending'} | Attempts: ${this.retryCount}/${this.maxRetries}`);
   }
 
   sendMatchResult() {
     // Prevent duplicate API calls
-    if (this.resultSent) {
-      console.log('Match result already sent, skipping duplicate send');
+    if (this.resultSent || this.isTransitioning) {
+      console.log('Match result already sent or scene transitioning, skipping duplicate send');
       return;
     }
     
@@ -82,6 +107,7 @@ class ClaimDistributionScene extends Phaser.Scene {
     
     // Update processing text
     this.processingText.setText(`Processing results (Attempt ${this.retryCount + 1}/${this.maxRetries})...`);
+    this.updateDebugText();
     
     // Send match result to backend
     gameApiClient.sendMatchResult(
@@ -95,14 +121,13 @@ class ClaimDistributionScene extends Phaser.Scene {
         if (response && response.success === true) {
           // Set flag that result has been sent
           this.resultSent = true;
+          this.updateDebugText();
           
           // Show success message briefly
           this.processingText.setText('Rewards claimed successfully!');
           
           // Delay before moving to next scene
-          this.time.delayedCall(2000, () => {
-            this.scene.start('SearchingMatchScene');
-          });
+          this.transitionToNextScene();
         } else {
           // If not successful, retry or go to paused scene
           console.error('API call succeeded but response indicates failure');
@@ -115,8 +140,22 @@ class ClaimDistributionScene extends Phaser.Scene {
       });
   }
 
+  transitionToNextScene() {
+    // Prevent multiple transitions
+    if (this.isTransitioning) return;
+    
+    this.isTransitioning = true;
+    console.log('Transitioning to next scene in 2 seconds');
+    
+    this.time.delayedCall(2000, () => {
+      console.log('Starting SearchingMatchScene');
+      this.scene.start('SearchingMatchScene');
+    });
+  }
+
   handleFailedResult() {
     this.retryCount++;
+    this.updateDebugText();
     
     if (this.retryCount < this.maxRetries) {
       // Update processing text
@@ -129,6 +168,7 @@ class ClaimDistributionScene extends Phaser.Scene {
     } else {
       // Set flag that we're done trying (to prevent further retries)
       this.resultSent = true;
+      this.updateDebugText();
       
       // Max retries reached, go to paused scene
       console.log('Max retries reached, moving to paused scene');
@@ -136,8 +176,13 @@ class ClaimDistributionScene extends Phaser.Scene {
       
       // Delay before moving to paused scene
       this.time.delayedCall(3000, () => {
-        this.scene.start('PausedScene');
+        this.scene.start('PausedScene', {
+          matchId: this.matchId
+        });
       });
     }
   }
-} 
+}
+
+// Register the scene globally
+window.ClaimDistributionScene = ClaimDistributionScene; 

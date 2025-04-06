@@ -177,27 +177,47 @@ class GameApiClient {
     // Send match result (after battle mode)
     async sendMatchResult(winner, isKO = false) {
         try {
+            // Get the current match ID
             const matchId = this._getCurrentMatchId();
             
+            if (!matchId) {
+                console.error('No match ID available for sending match result');
+                throw new Error('No match ID available for sending match result');
+            }
+            
+            // Make sure winner is properly handled
+            if (!winner || !winner.name) {
+                console.error('Invalid winner object provided to sendMatchResult:', winner);
+                throw new Error('Invalid winner object provided to sendMatchResult');
+            }
+            
+            // Create payload
             const payload = {
                 matchId,
-                winner: winner.name,
+                winner: winner.name.toUpperCase(),
                 isKO,
             };
+            
+            console.log('Sending match result with payload:', payload);
             
             const timestamp = Date.now().toString();
             const requestId = this._generateRequestId();
             const signature = await this._signRequest(payload, timestamp, requestId);
             
-            const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.matchResult}`, {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.get('gameSessionToken')}`,
+                'X-Timestamp': timestamp,
+                'X-Request-ID': requestId,
+                'X-Signature': signature
+            };
+            
+            const endpoint = `${this.baseUrl}${API_CONFIG.endpoints.matchResult}`;
+            this._logApiCall(endpoint, 'POST', payload, headers);
+            
+            const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.get('gameSessionToken')}`,
-                    'X-Timestamp': timestamp,
-                    'X-Request-ID': requestId,
-                    'X-Signature': signature
-                },
+                headers,
                 body: JSON.stringify(payload)
             });
             
@@ -205,7 +225,10 @@ class GameApiClient {
                 throw new Error(`Failed to send match result: ${response.status}`);
             }
             
-            return await response.json();
+            const responseData = await response.json();
+            console.log('Match result sent successfully:', responseData);
+            
+            return responseData;
         } catch (error) {
             console.error('Error sending match result:', error);
             throw error;

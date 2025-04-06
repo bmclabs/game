@@ -101,7 +101,7 @@ class PreparationScene extends Phaser.Scene {
       this.background.setDepth(-1);
 
       // Instead of a start button, add a countdown text that will automatically start the battle
-      const countdownText = this.add.text(400, 50, 'MATCH STARTING IN 240...', { // Moved down from 550 to 580
+      const countdownText = this.add.text(400, 50, 'MATCH STARTING IN 120...', { // Moved down from 550 to 580
         fontSize: '42px',
         fill: '#fff',
         fontStyle: 'bold',
@@ -111,7 +111,7 @@ class PreparationScene extends Phaser.Scene {
       }).setOrigin(0.5);
       
       // Start countdown
-      let countdown = 240;
+      let countdown = 120;
       const countdownInterval = setInterval(() => {
         countdown--;
         if (countdown > 0) {
